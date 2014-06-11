@@ -31,6 +31,7 @@ var
   LatticeType: string = '';
   Kink: double = 0.0;
   TopPlaneCut: double = 0.0;
+  VacConcentration: double = 0.0;
 
 
 {
@@ -85,14 +86,14 @@ procedure Lattice_FeAl_B2;
 begin
   TSubLatticeSC.Create(26, LatConst_FeAl).
     InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(0.0).
+    Place(VacConcentration).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 
   TSubLatticeSC.Create(13, LatConst_FeAl).
     SetOffset(0.5, 0.5, 0.5).
     InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(0.0).
+    Place(VacConcentration).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 
@@ -109,7 +110,7 @@ var
 begin
   TSubLatticeSC.Create(26, LatConst_FeAl).
     InitLattice(LatticeCells*2, LatticeCells*2, LatticeCells*2).
-    Place(0.0).
+    Place(VacConcentration).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 
@@ -119,7 +120,7 @@ begin
         TSubLatticeSC.Create(Alternate[(x+y+z) mod 2 = 0], LatConst_FeAl * 2).
           SetOffset(0.25 + 0.5*x, 0.25 + 0.5*y, 0.25 + 0.5*z).
           InitLattice(LatticeCells, LatticeCells, LatticeCells).
-          Place(0.0).
+          Place(VacConcentration).
           ExportAtoms(AtomList, OverallPlaces).
           Free;
       end;
@@ -130,16 +131,17 @@ begin
 end;
 
 const
-  OptionsLong: array[0..6] of TOption = (
+  OptionsLong: array[0..7] of TOption = (
    (Name: 'lattice'; Has_Arg: Required_Argument; Flag: nil; Value: 'l'),
    (Name: 'file'; Has_Arg: Required_Argument; Flag: nil; Value: 'o'),
    (Name: 'cells'; Has_Arg: Required_Argument; Flag: nil; Value: 'c'),
    (Name: 'kink'; Has_Arg: Required_Argument; Flag: nil; Value: 'k'),
    (Name: 'top'; Has_Arg: Required_Argument; Flag: nil; Value: 't'),
+   (Name: 'svac'; Has_Arg: Required_Argument; Flag: nil; Value: 'v'),
    (Name: 'help'; Has_Arg: No_Argument; Flag: nil; Value: 'h'),
    (Name: ''; Has_Arg: 0; Flag: nil; Value: #0)
   );
-  OptionShort = '?hl:o:c:k:t:';
+  OptionShort = '?hl:o:c:k:t:v:';
 
 var
   optIndex: integer;
@@ -168,6 +170,9 @@ begin
         end;
         'k': begin
           Kink:= StrToFloat(OptArg);
+        end;
+        'v': begin
+          VacConcentration:= StrToFloat(OptArg);
         end;
         'h',
         '?': begin
