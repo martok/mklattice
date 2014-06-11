@@ -28,7 +28,7 @@ type
   public
     procedure RemoveAtoms(const Min, Max, Keep: TSize3); overload;
     procedure RemoveAtoms(const Min, Max: TSize3); overload;
-    procedure ExportAtoms(const Comment: String; const TypeTable: array of TAtomType);
+    procedure ExportAtoms(const Comment: String; const TypeTable: array of TAtomType; const OverallPlaces: int64);
     constructor Create;
     procedure MergeCell(const aCell: TSize3);
     property Cell: TSize3 read fCell write fCell;
@@ -90,12 +90,14 @@ begin
   RemoveAtoms(Min, Max, Min);
 end;
 
-procedure TAtomList.ExportAtoms(const Comment: String; const TypeTable: array of TAtomType);
+procedure TAtomList.ExportAtoms(const Comment: String;
+  const TypeTable: array of TAtomType; const OverallPlaces: int64);
 var
   i, k, m: integer;
   ix,iy,iz,ax,ay,az: Extended;
   p: TAtomDef;
   Masses: TStringList;
+  Counts: array of Integer;
 begin
   // Full path to find box extents and used atom types
   ix:= Infinity;
@@ -117,6 +119,8 @@ begin
           if TypeTable[k].ID = p.AtType then begin
             // store atom type index back in m
             m:= Masses.Add(IntToStr(p.AtType) + Masses.NameValueSeparator + IntToStr(k));
+            SetLength(Counts, m + 1);
+            Counts[m]:= 0;
             break;
           end;
         if m < 0 then begin
@@ -125,6 +129,7 @@ begin
         end;
       end;
       p.AtType:= m;
+      inc(Counts[m]);
       // compute new extents
       if p.X < ix then ix:= p.X;
       if p.X > ax then ax:= p.X;
@@ -156,23 +161,30 @@ begin
       WriteLn(i+1, ' ', TypeTable[m].Weight);
     end;
     WriteLn('');
+
+    WriteLn('Atoms # atomic');
+    WriteLn('');
+    for i:= 0 to Count-1 do
+      with Items[i] do
+        WriteLn(i+1, ' ', AtType+1, ' ', X, ' ', Y, ' ', Z);
+    WriteLn('');
+
+    // all at rest
+    WriteLn('Velocities');
+    WriteLn('');
+    for i:= 0 to Count-1 do
+      WriteLn(i+1, ' 0.0 0.0 0.0');
+    WriteLn('');
+
+    Writeln(ErrOutput, 'Atom census:');
+    for i:= 0 to Masses.Count-1 do begin
+      m:= StrToInt(Masses.ValueFromIndex[i]);
+      WriteLn(ErrOutput, TypeTable[m].Name:4, ' ', Counts[i]:8, ' = ',Counts[i]/OverallPlaces*100:5:2,'% (',Counts[i]/Count*100:5:2,'%)');
+    end;
+      WriteLn(ErrOutput, 'c_v':4, ' ', OverallPlaces-Count:8, ' = ',(OverallPlaces-Count)/OverallPlaces*100:5:2,'%');
   finally
     FreeAndNil(Masses);
   end;
-
-  WriteLn('Atoms # atomic');
-  WriteLn('');
-  for i:= 0 to Count-1 do
-    with Items[i] do
-      WriteLn(i+1, ' ', AtType+1, ' ', X, ' ', Y, ' ', Z);
-  WriteLn('');
-
-  // all at rest
-  WriteLn('Velocities');
-  WriteLn('');
-  for i:= 0 to Count-1 do
-    WriteLn(i+1, ' 0.0 0.0 0.0');
-  WriteLn('');
 end;
 
 constructor TAtomList.Create;

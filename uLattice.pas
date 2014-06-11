@@ -24,7 +24,7 @@ type
     function InitLattice(mX, mY, mZ: Integer): TSubLatticeSC;
 
     function Place(const VacancyDensity: Single): TSubLatticeSC;
-    function ExportAtoms(const List:TAtomList): TSubLatticeSC;
+    function ExportAtoms(const List:TAtomList; out PlaceCounter: int64): TSubLatticeSC;
   end;
 
 implementation
@@ -85,17 +85,20 @@ begin
         Places[i,j,k]:= Random > VacancyDensity;
 end;
 
-function TSubLatticeSC.ExportAtoms(const List: TAtomList): TSubLatticeSC;
+function TSubLatticeSC.ExportAtoms(const List: TAtomList; out
+  PlaceCounter: int64): TSubLatticeSC;
 var
   i,j,k: integer;
 begin
   Result:= Self;
   for i:= 0 to high(Places) do
     for j:= 0 to high(Places[i]) do
-      for k:= 0 to high(Places[i,j]) do
+      for k:= 0 to high(Places[i,j]) do begin
+        inc(PlaceCounter);
         if Places[i,j,k] then begin
           List.Add(TAtomDef.Create(AtomType, (i + Offset[0]) * LatConst, (j + Offset[1]) * LatConst, (k + Offset[2]) * LatConst));
         end;
+      end;
   List.MergeCell(Cell);
 end;
 
