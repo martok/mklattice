@@ -179,9 +179,9 @@ begin
     Writeln(ErrOutput, 'Atom census:');
     for i:= 0 to Masses.Count-1 do begin
       m:= StrToInt(Masses.ValueFromIndex[i]);
-      WriteLn(ErrOutput, TypeTable[m].Name:4, ' ', Counts[i]:8, ' = ',Counts[i]/OverallPlaces*100:5:2,'% (',Counts[i]/Count*100:5:2,'%)');
+      WriteLn(ErrOutput, TypeTable[m].Name:4, ' ', Counts[i]:8, ' = ',Counts[i]/OverallPlaces*100:5:3,'% (',Counts[i]/Count*100:5:2,'%)');
     end;
-      WriteLn(ErrOutput, 'c_v':4, ' ', OverallPlaces-Count:8, ' = ',(OverallPlaces-Count)/OverallPlaces*100:5:2,'%');
+      WriteLn(ErrOutput, 'c_v':4, ' ', OverallPlaces-Count:8, ' = ',(OverallPlaces-Count)/OverallPlaces:5:6);
   finally
     FreeAndNil(Masses);
   end;
