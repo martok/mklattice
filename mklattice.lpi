@@ -32,7 +32,7 @@
         <CommandLineParams Value="--preset feal-do3 -c 4 --cells 5 -v 1:0.1"/>
       </local>
     </RunParams>
-    <Units Count="4">
+    <Units Count="5">
       <Unit0>
         <Filename Value="mklattice.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -51,6 +51,11 @@
         <Filename Value="uStrInput.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="uAtomTypes.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="uAtomTypes"/>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -7,17 +7,8 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   getopts,
-  Classes, SysUtils, uLattice, uAtomList, uStrInput
+  Classes, SysUtils, uLattice, uAtomList, uStrInput, uAtomTypes
   { you can add units after this };
-
-
-const
-  AtomTypes: array[0..2] of TAtomType = (
-  //  (ID: 1; Weight: 55.845; Name: 'Fe'),
-    (ID: 13; Weight: 26.981538; Name: 'Al'),
-    (ID: 26; Weight: 55.845; Name: 'Fe'),
-    (ID: 74; Weight: 183.84; Name: 'W')
-  );
 
 var
   AtomList:TAtomList;
@@ -245,6 +236,7 @@ var
 begin
   LoadNeutralFormatSettings;
   Randomize;
+  LoadAtomTypes;
   OverallPlaces:= 0;
   AtomList:= TAtomList.Create;
   try
