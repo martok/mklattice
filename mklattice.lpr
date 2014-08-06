@@ -117,7 +117,7 @@ begin
   TSubLatticeSC.Create(Elements[1], LatConst).
     SetOffset(0.5, 0.5, 0.5).
     InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(Vacancies[0]).
+    Place(Vacancies[1]).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 end;
