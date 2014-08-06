@@ -63,12 +63,12 @@ var
   numEl: integer;
 begin
   case LatticeType of
+    'SC',
+    'FCC',
     'BCC': begin
       numEl:= 1;
     end;
-    'B2': begin
-      numEl:= 2;
-    end;
+    'B2',
     'DO3': begin
       numEl:= 2;
     end;
@@ -90,6 +90,15 @@ begin
     param:= Arg;
 end;
 
+procedure Lattice_SC;
+begin
+  TSubLatticeSC.Create(Elements[0], LatConst).
+    InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    Place(0.0).
+    ExportAtoms(AtomList, OverallPlaces).
+    Free;
+end;
+
 procedure Lattice_BCC;
 begin
   TSubLatticeSC.Create(Elements[0], LatConst).
@@ -104,6 +113,26 @@ begin
     Place(0.0).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
+end;
+
+procedure Lattice_FCC;
+const
+  sides: array[0..3] of TSize3 = (
+    (0.0, 0.0, 0.0),
+    (0.5, 0.0, 0.5),
+    (0.0, 0.5, 0.5),
+    (0.5, 0.5, 0.0)
+  );
+var
+  i: integer;
+begin
+  for i:= 0 to high(sides) do
+    TSubLatticeSC.Create(Elements[0], LatConst).
+      SetOffset(sides[i][0],sides[i][1],sides[i][2]).
+      InitLattice(LatticeCells, LatticeCells, LatticeCells).
+      Place(0.0).
+      ExportAtoms(AtomList, OverallPlaces).
+      Free;
 end;
 
 procedure Lattice_B2;
@@ -251,7 +280,9 @@ begin
     end;
 
     case LatticeType of
+      'SC': Lattice_SC;
       'BCC': Lattice_BCC;
+      'FCC': Lattice_FCC;
       'B2': Lattice_B2;
       'DO3': Lattice_DO3;
       else begin

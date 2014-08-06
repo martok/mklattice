@@ -14,7 +14,7 @@ type
     Name: String;
   end;
 
-  TSize3 = array[0..3] of Extended;
+  TSize3 = array[0..2] of Extended;
 
   TAtomDef = class
     AtType: Byte;
@@ -24,7 +24,7 @@ type
   TAtomListBase = specialize TFPGObjectList<TAtomDef>;
   TAtomList = class(TAtomListBase)
   private
-    fCell: array[0..3] of Extended;
+    fCell: TSize3;
   public
     procedure RemoveAtoms(const Min, Max, Keep: TSize3); overload;
     procedure RemoveAtoms(const Min, Max: TSize3); overload;
