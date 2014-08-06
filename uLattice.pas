@@ -24,7 +24,8 @@ type
     function InitLattice(mX, mY, mZ: Integer): TSubLatticeSC;
 
     function Place(const VacancyDensity: Single): TSubLatticeSC;
-    function ExportAtoms(const List:TAtomList; out PlaceCounter: int64): TSubLatticeSC;
+    function ExportAtoms(const List: TAtomList; var PlaceCounter: int64
+      ): TSubLatticeSC;
   end;
 
 implementation
@@ -85,8 +86,7 @@ begin
         Places[i,j,k]:= Random > VacancyDensity;
 end;
 
-function TSubLatticeSC.ExportAtoms(const List: TAtomList; out
-  PlaceCounter: int64): TSubLatticeSC;
+function TSubLatticeSC.ExportAtoms(const List: TAtomList; var PlaceCounter: int64): TSubLatticeSC;
 var
   i,j,k: integer;
 begin

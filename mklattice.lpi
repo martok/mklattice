@@ -29,14 +29,13 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-l B2 -c 1"/>
+        <CommandLineParams Value="--preset feal-do3 -c 4 --cells 5 -v 1:0.1"/>
       </local>
     </RunParams>
     <Units Count="4">
       <Unit0>
         <Filename Value="mklattice.lpr"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="mklattice"/>
       </Unit0>
       <Unit1>
         <Filename Value="uLattice.pas"/>
@@ -51,7 +50,6 @@
       <Unit3>
         <Filename Value="uStrInput.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="uStrInput"/>
       </Unit3>
     </Units>
   </ProjectOptions>
@@ -65,12 +63,6 @@
       <IncludeFiles Value="$(ProjOutDir)"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
-    <Other>
-      <CompilerMessages>
-        <MsgFileName Value=""/>
-      </CompilerMessages>
-      <CompilerPath Value="$(CompPath)"/>
-    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

@@ -27,12 +27,13 @@ const
   LatConst_FeAl = 2.85133; // range 2.83..3.03, summary in Shu et al, J.Mater.Sci.Technol. Vol 17 No 6(2001), 601
   LatConst_W = 3.1;
 var
-  LatticeCells: integer = 1;
-  LatticeType: string = '';
-  Kink: double = 0.0;
-  TopPlaneCut: double = 0.0;
-  VacConcentration: double = 0.0;
-
+  LatticeType: string = '';           // BCC B2 DO3
+  Elements: array of Byte;            // Element numbers by lattice place/sublattice
+  Vacancies: array of Double;         // Sublattice vacancy densities (probability of a lattice place being empty)
+  LatConst: double = 0.0;             // (fundamental) lattice constant a (not the effective lattice constant a' of complex crystals)
+  LatticeCells: integer = 1;          // number of cells in every direction
+  Kink: double = 0.0;                 //
+  TopPlaneCut: double = 0.0;          //
 
 {
   Carve out a kink in the top layer, keeping an area that is 0.5*SimBox x $Kink*SimBox x LatConst
@@ -66,87 +67,181 @@ begin
   AtomList.Cell:= Size3(AtomList.Cell[0],AtomList.Cell[1],AtomList.Cell[2] - TopPlaneCut);
 end;
 
-procedure Lattice_W_bcc;
-begin
-  TSubLatticeSC.Create(74, LatConst_W).
-    InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(0.0).
-    ExportAtoms(AtomList, OverallPlaces).
-    Free;
-
-  TSubLatticeSC.Create(74, LatConst_W).
-    SetOffset(0.5, 0.5, 0.5).
-    InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(0.0).
-    ExportAtoms(AtomList, OverallPlaces).
-    Free;
-end;
-
-procedure Lattice_FeAl_B2;
-begin
-  TSubLatticeSC.Create(26, LatConst_FeAl).
-    InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(VacConcentration).
-    ExportAtoms(AtomList, OverallPlaces).
-    Free;
-
-  TSubLatticeSC.Create(13, LatConst_FeAl).
-    SetOffset(0.5, 0.5, 0.5).
-    InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(VacConcentration).
-    ExportAtoms(AtomList, OverallPlaces).
-    Free;
-
-  Carve_Top;
-  if Kink > 0.0 then
-    Carve_Kink(LatConst_FeAl);
-end;
-
-procedure Lattice_FeAl_DO3;
-const
-  Alternate: array[boolean] of byte = (13, 26);
+procedure InitLatticeParameters;
 var
-  x,y,z: integer;
+  numEl: integer;
 begin
-  TSubLatticeSC.Create(26, LatConst_FeAl).
+  case LatticeType of
+    'BCC': begin
+      numEl:= 1;
+    end;
+    'B2': begin
+      numEl:= 2;
+    end;
+    'DO3': begin
+      numEl:= 2;
+    end;
+  end;
+  SetLength(Elements, numEl);
+  SetLength(Vacancies, numEl);
+end;
+
+function SplitIndexedArg(const Arg: String; out Idx: integer; out param: string): boolean;
+var
+  i: integer;
+begin
+  i:= Pos(':',Arg);
+  Result:= i > 0;
+  if Result then begin
+    Idx:= StrToInt(Copy(Arg, 1, i-1));
+    param:= Copy(Arg, i+1, MaxInt);
+  end else
+    param:= Arg;
+end;
+
+procedure Lattice_BCC;
+begin
+  TSubLatticeSC.Create(Elements[0], LatConst).
+    InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    Place(0.0).
+    ExportAtoms(AtomList, OverallPlaces).
+    Free;
+
+  TSubLatticeSC.Create(Elements[0], LatConst).
+    SetOffset(0.5, 0.5, 0.5).
+    InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    Place(0.0).
+    ExportAtoms(AtomList, OverallPlaces).
+    Free;
+end;
+
+procedure Lattice_B2;
+begin
+  TSubLatticeSC.Create(Elements[0], LatConst).
+    InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    Place(Vacancies[0]).
+    ExportAtoms(AtomList, OverallPlaces).
+    Free;
+
+  TSubLatticeSC.Create(Elements[1], LatConst).
+    SetOffset(0.5, 0.5, 0.5).
+    InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    Place(Vacancies[0]).
+    ExportAtoms(AtomList, OverallPlaces).
+    Free;
+end;
+
+procedure Lattice_DO3;
+const
+  Alternate: array[boolean] of byte = (1,0);
+var
+  x,y,z,e: integer;
+begin
+  TSubLatticeSC.Create(Elements[0], LatConst).
     InitLattice(LatticeCells*2, LatticeCells*2, LatticeCells*2).
-    Place(VacConcentration).
+    Place(Vacancies[0]).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 
   for x:= 0 to 1 do
     for y:= 0 to 1 do
       for z:= 0 to 1 do begin
-        TSubLatticeSC.Create(Alternate[(x+y+z) mod 2 = 0], LatConst_FeAl * 2).
+        e:= Alternate[(x+y+z) mod 2 = 0];
+        TSubLatticeSC.Create(Elements[e], LatConst * 2).
           SetOffset(0.25 + 0.5*x, 0.25 + 0.5*y, 0.25 + 0.5*z).
           InitLattice(LatticeCells, LatticeCells, LatticeCells).
-          Place(VacConcentration).
+          Place(Vacancies[e]).
           ExportAtoms(AtomList, OverallPlaces).
           Free;
       end;
-
-  Carve_Top;
-  if Kink > 0.0 then
-    Carve_Kink(LatConst_FeAl);
 end;
 
 const
-  OptionsLong: array[0..7] of TOption = (
-   (Name: 'lattice'; Has_Arg: Required_Argument; Flag: nil; Value: 'l'),
+  OptionsLong: array[1..11] of TOption = (
    (Name: 'file'; Has_Arg: Required_Argument; Flag: nil; Value: 'o'),
+   (Name: 'preset'; Has_Arg: Required_Argument; Flag: nil; Value: #0),
+   (Name: 'lattice'; Has_Arg: Required_Argument; Flag: nil; Value: 'l'),
+   (Name: 'latconst'; Has_Arg: Required_Argument; Flag: nil; Value: 'a'),
    (Name: 'cells'; Has_Arg: Required_Argument; Flag: nil; Value: 'c'),
+   (Name: 'element'; Has_Arg: Required_Argument; Flag: nil; Value: 'e'),
    (Name: 'kink'; Has_Arg: Required_Argument; Flag: nil; Value: 'k'),
    (Name: 'top'; Has_Arg: Required_Argument; Flag: nil; Value: 't'),
-   (Name: 'svac'; Has_Arg: Required_Argument; Flag: nil; Value: 'v'),
+   (Name: 'vac'; Has_Arg: Required_Argument; Flag: nil; Value: 'v'),
    (Name: 'help'; Has_Arg: No_Argument; Flag: nil; Value: 'h'),
    (Name: ''; Has_Arg: 0; Flag: nil; Value: #0)
   );
-  OptionShort = '?hl:o:c:k:t:v:';
+  OptionShort = '?hl:o:c:k:t:v:a:e:';
+
+procedure ProcessOption(const opt: string; const OptArg: string);
+var
+  i: integer;
+  p: string;
+begin
+  case opt of
+    'o': begin
+      CloseFile(Output);
+      AssignFile(Output, OptArg);
+      Rewrite(Output);
+    end;
+    'preset': begin
+      case UpperCase(OptArg) of
+        'FEAL-B2': begin
+          ProcessOption('l','B2');
+          ProcessOption('a',FloatToStr(LatConst_FeAl));
+          ProcessOption('e','0:26');
+          ProcessOption('e','1:13');
+        end;
+        'FEAL-DO3': begin
+          ProcessOption('l','DO3');
+          ProcessOption('a',FloatToStr(LatConst_FeAl));
+          ProcessOption('e','0:26');
+          ProcessOption('e','1:13');
+        end;
+      end;
+    end;
+    'l': begin
+      LatticeType:= UpperCase(OptArg);
+      InitLatticeParameters;
+    end;
+    'a': begin
+      LatConst:= StrToFloat(OptArg);
+    end;
+    'c': begin
+      LatticeCells:= StrToInt(OptArg);
+    end;
+    'e': begin
+      if SplitIndexedArg(OptArg, i, p) then
+        Elements[i]:= StrToInt(p)
+      else
+        for i:= 0 to high(Elements) do
+          Elements[i]:= StrToInt(p);
+    end;
+    'k': begin
+      Kink:= StrToFloat(OptArg);
+    end;
+    't': begin
+      TopPlaneCut:= StrToFloat(OptArg);
+    end;
+    'v': begin
+      if SplitIndexedArg(OptArg, i, p) then
+        Vacancies[i]:= StrToFloat(p)
+      else
+        for i:= 0 to high(Elements) do
+          Vacancies[i]:= StrToFloat(p);
+    end;
+    'h',
+    '?': begin
+      WriteLn('mklattice -l (B2|DO3) [-c cells] [-o file]');
+      Halt(0);
+    end;
+  else
+    WriteLn(ErrOutput, 'Unknown option: ', opt);
+  end;
+end;
 
 var
   optIndex: integer;
-
-
+  opt: string;
 begin
   LoadNeutralFormatSettings;
   Randomize;
@@ -155,43 +250,27 @@ begin
   try
     optIndex:= 0;
     while True do begin
-      case GetLongOpts(OptionShort, @OptionsLong, optIndex) of
-        'l': LatticeType:= OptArg;
-        'o': begin
-          CloseFile(Output);
-          AssignFile(Output, OptArg);
-          Rewrite(Output);
-        end;
-        'c': begin
-          LatticeCells:= StrToInt(OptArg);
-        end;
-        't': begin
-          TopPlaneCut:= StrToFloat(OptArg);
-        end;
-        'k': begin
-          Kink:= StrToFloat(OptArg);
-        end;
-        'v': begin
-          VacConcentration:= StrToFloat(OptArg);
-        end;
-        'h',
-        '?': begin
-          WriteLn('mklattice -l (B2|DO3) [-c cells] [-o file]');
-          Halt(0);
-        end;
-        EndOfOptions: break;
-      end;
+      opt:= GetLongOpts(OptionShort, @OptionsLong[1], optIndex);
+      if opt = EndOfOptions then
+        break;
+      if opt = #0 then
+        opt:= OptionsLong[optIndex].Name;
+      ProcessOption(opt, optArg);
     end;
 
-    case UpperCase(LatticeType) of
-      'W_BCC': Lattice_W_bcc;
-      'B2': Lattice_FeAl_B2;
-      'DO3': Lattice_FeAl_DO3;
+    case LatticeType of
+      'BCC': Lattice_BCC;
+      'B2': Lattice_B2;
+      'DO3': Lattice_DO3;
       else begin
         WriteLn(StdErr, 'Invalid lattice argument: ',OptArg);
         Halt(1);
       end;
     end;
+
+    Carve_Top;
+    if Kink > 0.0 then
+      Carve_Kink(LatConst);
 
     AtomList.ExportAtoms('Generated by `'+cmdline+'` at ' + DateTimeToStr(Now), AtomTypes, OverallPlaces);
   finally
