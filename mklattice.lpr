@@ -248,8 +248,14 @@ begin
       LatticeCells:= StrToInt(OptArg);
     end;
     'e': begin
-      if SplitIndexedArg(OptArg, i, p) then
-        Elements[i]:= StrToInt(p)
+      if SplitIndexedArg(OptArg, i, p) then begin
+        if (i>=0) and (i < Length(Elements)) then
+          Elements[i]:= StrToInt(p)
+        else begin
+          WriteLn(ErrOutput, 'Sublattice element index ',i,' out of bounds');
+          Halt(1);
+        end;
+      end
       else
         for i:= 0 to high(Elements) do
           Elements[i]:= StrToInt(p);
@@ -261,8 +267,14 @@ begin
       TopPlaneCut:= StrToFloat(OptArg);
     end;
     'v': begin
-      if SplitIndexedArg(OptArg, i, p) then
-        Vacancies[i]:= StrToFloat(p)
+      if SplitIndexedArg(OptArg, i, p) then  begin
+        if (i>=0) and (i < Length(Vacancies)) then
+          Vacancies[i]:= StrToFloat(p)
+        else begin
+          WriteLn(ErrOutput, 'Sublattice vacancy index ',i,' out of bounds');
+          Halt(1);
+        end;
+      end
       else
         for i:= 0 to high(Elements) do
           Vacancies[i]:= StrToFloat(p);
@@ -304,7 +316,7 @@ begin
       'B2': Lattice_B2;
       'DO3': Lattice_DO3;
       else begin
-        WriteLn(StdErr, 'Invalid lattice argument: ',OptArg);
+        WriteLn(ErrOutput, 'Invalid lattice argument: ',OptArg);
         Halt(1);
       end;
     end;
