@@ -7,6 +7,7 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   getopts,
+  IniFiles,
   Classes, SysUtils, uLattice, uAtomList, uStrInput, uAtomTypes
   { you can add units after this };
 
@@ -15,8 +16,7 @@ var
   OverallPlaces: int64;
 
 const
-  LatConst_FeAl = 2.85133; // range 2.83..3.03, summary in Shu et al, J.Mater.Sci.Technol. Vol 17 No 6(2001), 601
-  LatConst_W = 3.1;
+  PresetFileName = 'presets.ini';
 var
   LatticeType: string = '';           // BCC B2 DO3
   Elements: array of Byte;            // Element numbers by lattice place/sublattice
@@ -193,6 +193,37 @@ const
   OptionShort = '?hl:o:c:k:t:v:a:e:';
 
 procedure ProcessOption(const opt: string; const OptArg: string);
+  procedure ExecutePreset(const PresetName: string);
+  var
+    mi: TMemIniFile;
+    cmd: TStringList;
+    i: integer;
+  begin
+    if not FileExists(ExtractFilePath(ParamStr(0)) + PresetFileName) then begin
+      WriteLn(ErrOutput, 'Preset file ',PresetFileName,' not found!');
+      Halt(1);
+    end;
+    mi:= TMemIniFile.Create(ExtractFilePath(ParamStr(0)) + PresetFileName);
+    try
+      cmd:= TStringList.Create;
+      try
+        mi.CaseSensitive:= false;
+        if not mi.SectionExists(PresetName) then begin
+          WriteLn(ErrOutput, 'Preset ',PresetName,' not found!');
+          Halt(1);
+        end;
+        mi.ReadSectionValues(PresetName, cmd);
+        for i:= 0 to cmd.Count-1 do
+          if cmd.Names[i] > '' then
+            ProcessOption(cmd.Names[i], cmd.ValueFromIndex[i]);
+      finally
+        FreeAndNil(cmd);
+      end;
+    finally
+      FreeAndNil(mi);
+    end;
+  end;
+
 var
   i: integer;
   p: string;
@@ -204,20 +235,7 @@ begin
       Rewrite(Output);
     end;
     'preset': begin
-      case UpperCase(OptArg) of
-        'FEAL-B2': begin
-          ProcessOption('l','B2');
-          ProcessOption('a',FloatToStr(LatConst_FeAl));
-          ProcessOption('e','0:26');
-          ProcessOption('e','1:13');
-        end;
-        'FEAL-DO3': begin
-          ProcessOption('l','DO3');
-          ProcessOption('a',FloatToStr(LatConst_FeAl));
-          ProcessOption('e','0:26');
-          ProcessOption('e','1:13');
-        end;
-      end;
+      ExecutePreset(OptArg);
     end;
     'l': begin
       LatticeType:= UpperCase(OptArg);
