@@ -14,7 +14,9 @@ type
     AtomType: Byte;
     Offset: TSize3;
     Cell: TSize3;
-    Places: TLatticeArray;
+    Dim: TGrid3;
+    FilterFunction: TAtomFilter;
+    FilterIndex: integer;
     constructor Create(aAtomType: Byte; aLatConst: Extended);
     // Set Position of first Atom
     function SetOffset(aX, aY, aZ: Extended): TSubLatticeSC;
@@ -23,9 +25,8 @@ type
     // Create a field with a specific number of lattice nodes
     function InitLattice(mX, mY, mZ: Integer): TSubLatticeSC;
 
-    function Place(const VacancyDensity: Single): TSubLatticeSC;
-    function ExportAtoms(const List: TAtomList; var PlaceCounter: int64
-      ): TSubLatticeSC;
+    function Filter(aFilterFunc: TAtomFilter; aIndex: integer): TSubLatticeSC;
+    function ExportAtoms(const List: TAtomList; var PlaceCounter: int64): TSubLatticeSC;
   end;
 
 implementation
@@ -41,7 +42,6 @@ begin
   AtomType:= aAtomType;
   LatConst:= aLatConst;
   SetOffset(0,0,0);
-  SetLength(Places,0,0,0);
 end;
 
 function TSubLatticeSC.SetOffset(aX, aY, aZ: Extended): TSubLatticeSC;
@@ -69,34 +69,38 @@ end;
 function TSubLatticeSC.InitLattice(mX, mY, mZ: Integer): TSubLatticeSC;
 begin
   Result:= Self;
-  SetLength(Places, ceil(mX - Offset[0]), ceil(mY - Offset[1]), ceil(mZ - Offset[2]));
+  Dim[0]:= ceil(mX - Offset[0]);
+  Dim[1]:= ceil(mY - Offset[1]);
+  Dim[2]:= ceil(mZ - Offset[2]);
   Cell[0]:= mX * LatConst;
   Cell[1]:= mY * LatConst;
   Cell[2]:= mZ * LatConst;
 end;
 
-function TSubLatticeSC.Place(const VacancyDensity: Single): TSubLatticeSC;
-var
-  i,j,k: integer;
+function TSubLatticeSC.Filter(aFilterFunc: TAtomFilter; aIndex: integer): TSubLatticeSC;
 begin
   Result:= Self;
-  for i:= 0 to high(Places) do
-    for j:= 0 to high(Places[i]) do
-      for k:= 0 to high(Places[i,j]) do
-        Places[i,j,k]:= Random > VacancyDensity;
+  FilterFunction:= aFilterFunc;
+  FilterIndex:= aIndex;
 end;
 
 function TSubLatticeSC.ExportAtoms(const List: TAtomList; var PlaceCounter: int64): TSubLatticeSC;
 var
   i,j,k: integer;
+  x,y,z: Single;
+  ia: Byte;
 begin
   Result:= Self;
-  for i:= 0 to high(Places) do
-    for j:= 0 to high(Places[i]) do
-      for k:= 0 to high(Places[i,j]) do begin
+  for i:= 0 to Dim[0]-1 do
+    for j:= 0 to Dim[1]-1 do
+      for k:= 0 to Dim[2]-1 do begin
         inc(PlaceCounter);
-        if Places[i,j,k] then begin
-          List.Add(TAtomDef.Create(AtomType, (i + Offset[0]) * LatConst, (j + Offset[1]) * LatConst, (k + Offset[2]) * LatConst));
+        ia:= AtomType;
+        x:= (i + Offset[0]) * LatConst;
+        y:= (j + Offset[1]) * LatConst;
+        z:= (k + Offset[2]) * LatConst;
+        if FilterFunction(FilterIndex,ia,x,y,z) then begin
+          List.Add(TAtomDef.Create(ia, x,y,z));
         end;
       end;
   List.MergeCell(Cell);

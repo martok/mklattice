@@ -15,6 +15,7 @@ type
   end;
 
   TSize3 = array[0..2] of Extended;
+  TGrid3 = array[0..2] of Integer;
 
   TAtomDef = class
     AtType: Byte;
@@ -34,7 +35,10 @@ type
     property Cell: TSize3 read fCell write fCell;
   end;
 
+  TAtomFilter = function(const AtomIndex: Integer; var AtomType: byte; const x,y,z: Single) : boolean;
+
 function Size3(const a, b, c: Extended): TSize3;
+function DefaultFilterFunc(const AtomIndex: Integer; var AtomType: byte; const x,y,z: Single) : boolean;
 
 implementation
 
@@ -46,6 +50,12 @@ begin
   Result[0]:= a;
   Result[1]:= b;
   Result[2]:= c;
+end;
+
+function DefaultFilterFunc(const AtomIndex: Integer; var AtomType: byte;
+  const x, y, z: Single): boolean;
+begin
+  Result:= true;
 end;
 
 { TAtomDef }

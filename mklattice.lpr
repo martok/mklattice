@@ -94,7 +94,6 @@ procedure Lattice_SC;
 begin
   TSubLatticeSC.Create(Elements[0], LatConst).
     InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(0.0).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 end;
@@ -103,14 +102,12 @@ procedure Lattice_BCC;
 begin
   TSubLatticeSC.Create(Elements[0], LatConst).
     InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(0.0).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 
   TSubLatticeSC.Create(Elements[0], LatConst).
     SetOffset(0.5, 0.5, 0.5).
     InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(0.0).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 end;
@@ -130,23 +127,27 @@ begin
     TSubLatticeSC.Create(Elements[0], LatConst).
       SetOffset(sides[i][0],sides[i][1],sides[i][2]).
       InitLattice(LatticeCells, LatticeCells, LatticeCells).
-      Place(0.0).
       ExportAtoms(AtomList, OverallPlaces).
       Free;
+end;
+
+function VacancyFilter(const AtomIndex: Integer; var AtomType: byte; const x,y,z: Single) : boolean;
+begin
+  Result:= (Random > Vacancies[AtomIndex]);
 end;
 
 procedure Lattice_B2;
 begin
   TSubLatticeSC.Create(Elements[0], LatConst).
     InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(Vacancies[0]).
+    Filter(@VacancyFilter, 0).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 
   TSubLatticeSC.Create(Elements[1], LatConst).
     SetOffset(0.5, 0.5, 0.5).
     InitLattice(LatticeCells, LatticeCells, LatticeCells).
-    Place(Vacancies[1]).
+    Filter(@VacancyFilter, 1).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 end;
@@ -159,7 +160,7 @@ var
 begin
   TSubLatticeSC.Create(Elements[0], LatConst).
     InitLattice(LatticeCells*2, LatticeCells*2, LatticeCells*2).
-    Place(Vacancies[0]).
+    Filter(@VacancyFilter, 0).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 
@@ -170,7 +171,7 @@ begin
         TSubLatticeSC.Create(Elements[e], LatConst * 2).
           SetOffset(0.25 + 0.5*x, 0.25 + 0.5*y, 0.25 + 0.5*z).
           InitLattice(LatticeCells, LatticeCells, LatticeCells).
-          Place(Vacancies[e]).
+          Filter(@VacancyFilter, e).
           ExportAtoms(AtomList, OverallPlaces).
           Free;
       end;
