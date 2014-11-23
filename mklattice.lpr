@@ -21,6 +21,7 @@ var
   LatticeType: string = '';           // BCC B2 DO3
   Elements: array of Byte;            // Element numbers by lattice place/sublattice
   Vacancies: array of Double;         // Sublattice vacancy densities (probability of a lattice place being empty)
+  AntiSite: array of Double;          // Sublattice antisite densities (probability of a lattice place being occupied by an atom of the next (mod count) element)
   LatConst: double = 0.0;             // (fundamental) lattice constant a (not the effective lattice constant a' of complex crystals)
   LatticeCells: integer = 1;          // number of cells in every direction
   Kink: double = 0.0;                 //
@@ -75,6 +76,7 @@ begin
   end;
   SetLength(Elements, numEl);
   SetLength(Vacancies, numEl);
+  SetLength(AntiSite, numEl);
 end;
 
 function SplitIndexedArg(const Arg: String; out Idx: integer; out param: string): boolean;
@@ -134,6 +136,11 @@ end;
 function VacancyFilter(const AtomIndex: Integer; var AtomType: byte; const x,y,z: Single) : boolean;
 begin
   Result:= (Random > Vacancies[AtomIndex]);
+  if Result then begin
+    if (Random > AntiSite[AtomIndex]) then begin
+      AtomType:= Elements[(AtomIndex + 1) mod Length(Elements)];
+    end;
+  end;
 end;
 
 procedure Lattice_B2;
@@ -178,7 +185,7 @@ begin
 end;
 
 const
-  OptionsLong: array[1..11] of TOption = (
+  OptionsLong: array[1..12] of TOption = (
    (Name: 'file'; Has_Arg: Required_Argument; Flag: nil; Value: 'o'),
    (Name: 'preset'; Has_Arg: Required_Argument; Flag: nil; Value: #0),
    (Name: 'lattice'; Has_Arg: Required_Argument; Flag: nil; Value: 'l'),
@@ -188,10 +195,11 @@ const
    (Name: 'kink'; Has_Arg: Required_Argument; Flag: nil; Value: 'k'),
    (Name: 'top'; Has_Arg: Required_Argument; Flag: nil; Value: 't'),
    (Name: 'vac'; Has_Arg: Required_Argument; Flag: nil; Value: 'v'),
+   (Name: 'anti'; Has_Arg: Required_Argument; Flag: nil; Value: 's'),
    (Name: 'help'; Has_Arg: No_Argument; Flag: nil; Value: 'h'),
    (Name: ''; Has_Arg: 0; Flag: nil; Value: #0)
   );
-  OptionShort = '?hl:o:c:k:t:v:a:e:';
+  OptionShort = '?hl:o:c:k:s:t:v:a:e:';
 
 procedure ProcessOption(const opt: string; const OptArg: string);
   procedure ExecutePreset(const PresetName: string);
@@ -279,6 +287,19 @@ begin
       else
         for i:= 0 to high(Elements) do
           Vacancies[i]:= StrToFloat(p);
+    end;
+    's': begin
+      if SplitIndexedArg(OptArg, i, p) then  begin
+        if (i>=0) and (i < Length(AntiSite)) then
+          AntiSite[i]:= StrToFloat(p)
+        else begin
+          WriteLn(ErrOutput, 'Sublattice antisite index ',i,' out of bounds');
+          Halt(1);
+        end;
+      end
+      else
+        for i:= 0 to high(Elements) do
+          AntiSite[i]:= StrToFloat(p);
     end;
     'h',
     '?': begin
