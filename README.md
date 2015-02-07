@@ -1,7 +1,13 @@
-mklattice
-=========
+General
+=======
+Collection of tools to pre- and postprocess [LAMMPS](http://lammps.sandia.gov/) simulation
+input and output files.
 
-Lattice data file generator for use with [LAMMPS](http://lammps.sandia.gov/).
+Built with FreePascal 2.7, may or may not compile with Delphi or other FPC versions.
+
+mklattice
+---------
+Lattice data file generator.
 
 Can be used to generate files to be imported using `read_data` according to a specified
 lattice and composition. Purpose-built for working with simple lattices (sc,bcc,fcc) and
@@ -10,8 +16,19 @@ vacancies and anti-sites are configured as needed.
 
 Built with FreePascal 2.7, may or may not compile with Delphi or other FPC versions.
 
-License
+dumputl
 -------
+Utility to split large LAMMPS dump files into handier parts, optionally compressing them using
+gzip (.gz).
+
+Can be used to create the single-frame file series that A. Stukowski's CrystalAnalysis-Tool requires
+or to extract subranges from large dump files. Frame offsets are stored in a .idx Mapfile associated
+with the input file to speed up any call after the first initial scan.
+
+File name formatting uses normal Pascal [format strings](http://www.freepascal.org/docs-html/rtl/sysutils/format.html).
+
+License
+=======
 ```
 Copyright (c) 2014-15, Sebastian Hütter (sebastian.huetter@st.ovgu.de)
 All rights reserved.
