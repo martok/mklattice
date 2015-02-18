@@ -30,38 +30,43 @@ begin
   tmr.OutputTime('Analysis time');
 end;
 
+(*
+   Implements the OIM Algorithm.
+   Arguments:
+     atoms      - obvious
+     LatConst   - exptected lattice constant
+     RefSystem  - Reference coordinate system.
+                  Essentially, X and Y components span the cut plane and Z component is the normal vector
+                  (pointing into material), although only Z is actually used in computation.
+
+   Results are stored in 3 attributes 'oim[rgb]', defaulting to (0,0,0) on atoms where no result is found.
+   Association is in the standard triangle of the IPF, being r = <100>, g = <011>, b = <111>
+*)
 procedure AnalysisOIM(atoms: TLammpsFile; LatConst: Single; RefSystem: TMatrix3x3f);
 const
   DEG_22 = 22/180*pi;
   DEG_45 = 45/180*pi;
+  DEG_90 = 90/180*pi;
 var
   tmr: TTimer;
-  fvx,fvy,fvz,
   fox,foy,foz: Integer;
-  i, n: integer;
+  i, n, m: integer;
   nn: TAtomRefs;
   at: PAtomRecord;
+  found: boolean;
   center,c,dir,nvec, axis,
-  lxax, lyax, lzax,
-  colx,coly,colz: TVector3f;
-  d,avgd, llattice,minadiff, adiff: Single;
-  mindiff: integer;
+  lxax, lyax, lzax: TVector3f;
+  d,avgd, llattice: Single;
   proj: TMatrix3x3f;
 begin
   tmr.Start;
-  fvx:= atoms.FieldIndex('vecx',true);
-  fvy:= atoms.FieldIndex('vecy',true);
-  fvz:= atoms.FieldIndex('vecz',true);
-  fox:= atoms.FieldIndex('oimx',true);
-  foy:= atoms.FieldIndex('oimy',true);
-  foz:= atoms.FieldIndex('oimz',true);
-
-  colx:= vecNormalize(vecCreate(0,0,1));
-  coly:= vecNormalize(vecCreate(1,0,1));
-  colz:= vecNormalize(vecCreate(1,1,1));
+  fox:= atoms.FieldIndex('oimr',true);
+  foy:= atoms.FieldIndex('oimg',true);
+  foz:= atoms.FieldIndex('oimb',true);
 
   for i:= 0 to High(atoms.Atoms) do begin
     at:= @atoms.Atoms[i];
+
     center:= vecCreate(at^.x, at^.y, at^.z);
 
     nn:= atoms.GetNeighbors(i, LatConst * 1.1);
@@ -96,68 +101,56 @@ begin
       // looks like BCC?
       if abs(llattice - avgd) < LatConst * 0.1 then begin
 
+        // iterate over all 24 right-hand systems and find the one that results in a projection inside the standard triangle
+
+        found:= false;
         // find first vector: axis that is most similar to (100)
-        axis:= RefSystem[0];
-        mindiff:= -1;
-        minadiff:= 1000;
         for n:= 9 to 14 do begin
           at:= @atoms.Atoms[nn[n]];
           c:= vecCreate(at^.x, at^.y, at^.z);
           dir:= c - center;
-          adiff:= vecAngleBetween(axis, dir);
-          if (adiff < minadiff) and
-             ((adiff < DEG_22) or (dir[1]>0)) then begin
-            minadiff:= adiff;
-            mindiff:= nn[n];
-            lxax:= dir;
-          end;
-        end;
-        if mindiff >= 0 then begin
-          // choose axis
-          lxax:= vecNormalize(lxax);
+          lxax:= vecNormalize(dir);
 
           // find second vector: axis that is most similar to (010) and perpendicular to the local (100)
-          axis:= RefSystem[1];
-          mindiff:= -1;
-          minadiff:= 1000;
-          for n:= 9 to 14 do begin
-            at:= @atoms.Atoms[nn[n]];
+          for m:= 9 to 14 do begin
+            at:= @atoms.Atoms[nn[m]];
             c:= vecCreate(at^.x, at^.y, at^.z);
             dir:= c - center;
-            if abs(vecAngleBetween(dir,lxax) - pi/2) < 0.5 then begin
-              adiff:= vecAngleBetween(axis, dir);
-              if (adiff < minadiff) and
-                 ((adiff < DEG_22) or (dir[2]>0)) then begin
-                minadiff:= adiff;
-                mindiff:= nn[n];
-                lyax:= dir;
+            if abs(vecAngleBetween(dir,lxax) - DEG_90) < 0.5 then begin
+              lyax:= vecNormalize(dir);
+
+              // compute z axis from right-hand system
+              lzax:= vecNormalize(vecCross(lxax, lyax));
+
+              // we now have the image of the unit coordinate system in the current cells local rotation, turn it into a projection matrix
+              proj:= matCreate(lxax, lyax, lzax);
+
+              // compute projected reference axis
+              axis:= matInvert(proj) * RefSystem[2];
+
+              // decompose into r*(001),g*(011),b*(111) parts
+              // {{r -> z - y, g -> y - x, b -> x}}
+              nvec[0]:= axis[2] - axis[1];
+              nvec[1]:= axis[1] - axis[0];
+              nvec[2]:= axis[0];
+
+              if (nvec[0] >= -0.1) and (nvec[1] >= -0.1) and (nvec[2] >= -0.1) then begin
+                found:= true;
+                break;
               end;
             end;
-          end;
-          // constrained to perpendicular vectors, so we may not have found one
-          if mindiff >= 0 then begin
-            // choose axis
-            lyax:= vecNormalize(lyax);
+            if found then
+              break;
+          end; //for
+          // did we find a system? good
+          if found then
+            break;
+        end; // for
 
-            // compute z axis from right-hand system
-            lzax:= vecCross(lxax, lyax);
-
-            // we now have the image of the unit coordinate system in the current cells local rotation, turn it into a projection matrix
-            proj:= matCreate(lxax, lyax, lzax);
-
-            // find the distance between the projected reference axis and the 3 axis used for coloring
-            axis:= proj * RefSystem[2];
-            nvec[0]:= axis[2] - axis[1];
-            nvec[1]:= axis[1] - axis[0];
-            nvec[2]:= axis[0];
-          end;
-        end;
+        if not found then
+          nvec:= NULL_VECTOR;
       end;
     end;
-
-    atoms.Atoms[i].Fields[fvx]:= FloatToStr(axis[0]);
-    atoms.Atoms[i].Fields[fvy]:= FloatToStr(axis[1]);
-    atoms.Atoms[i].Fields[fvz]:= FloatToStr(axis[2]);
 
     atoms.Atoms[i].Fields[fox]:= FloatToStr(nvec[0]);
     atoms.Atoms[i].Fields[foy]:= FloatToStr(nvec[1]);
@@ -175,17 +168,11 @@ begin
   atoms:= TLammpsFile.Create;
   try
     atoms.LoadLAMMPSDumpFile(filename);
-    atoms.PrepareNeighborCells(10);           {
+    atoms.PrepareNeighborCells(10);
     refsys:= matCreate(
       vecCreate(1, 0, 0),
       vecCreate(0, 1, 0),
       vecCreate(0, 0, 1)
-    );
-    }
-    refsys:= matCreate(
-      vecCreate(0, 0, 1),
-      vecCreate(1, 0, 0),
-      vecCreate(0, -1, 0)
     );
     AnalysisOIM(atoms, 2.86, refsys);
     atoms.SaveLAMMPSDumpFile(filename + '.out');
