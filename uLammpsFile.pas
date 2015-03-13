@@ -5,7 +5,7 @@ unit uLammpsFile;
 interface
 
 uses
-  Classes, SysUtils, strutils, uTimer, Math;
+  Classes, SysUtils, strutils, uTimer, Math, uGZipStream;
 
 type
   ELammpsError = class(Exception);
@@ -119,6 +119,8 @@ begin
 
   tmr.Start;
   AssignFile(ld, aFileName);
+  if AnsiEndsText('.gz', aFileName) then
+    GZipInitFile(ld);
   Reset(ld);
   try
     while not EOF(ld) do begin
@@ -221,6 +223,8 @@ begin
 
   tmr.Start;
   AssignFile(ld, aFileName);
+  if AnsiEndsText('.gz', aFileName) then
+    GZipInitFile(ld);
   Rewrite(ld);
   try
     WriteLn(ld, 'ITEM: TIMESTEP');

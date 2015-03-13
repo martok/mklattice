@@ -164,6 +164,7 @@ procedure ProcessFile(const filename: string);
 var
   atoms: TLammpsFile;
   refsys: TMatrix3x3f;
+  ex: String;
 begin
   atoms:= TLammpsFile.Create;
   try
@@ -175,7 +176,8 @@ begin
       vecCreate(0, 0, 1)
     );
     AnalysisOIM(atoms, 2.86, refsys);
-    atoms.SaveLAMMPSDumpFile(filename + '.out');
+    ex:= ExtractFileExt(filename);
+    atoms.SaveLAMMPSDumpFile(ChangeFileExt(filename,'') + '.out' + ex);
   finally
     FreeAndNil(atoms);
   end;
