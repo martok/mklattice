@@ -14,8 +14,6 @@ lattice and composition. Purpose-built for working with simple lattices (sc,bcc,
 B2 and DO3 phases of FeAl, but can be extended to other crystal structures. Atom types
 vacancies and anti-sites are configured as needed.
 
-Built with FreePascal 2.7, may or may not compile with Delphi or other FPC versions.
-
 dumputl
 -------
 Utility to split large LAMMPS dump files into handier parts, optionally compressing them using
@@ -26,6 +24,15 @@ or to extract subranges from large dump files. Frame offsets are stored in a .id
 with the input file to speed up any call after the first initial scan.
 
 File name formatting uses normal Pascal [format strings](http://www.freepascal.org/docs-html/rtl/sysutils/format.html).
+
+oim
+---
+Compute Orientaion Imaging Maps from Dump files.
+
+Takes one argument, the LAMMPS Dump File (may be .gz), and saves as the same name with ".oim" prepended
+to the file extension. If the input file was compressed, the output file will be as well.
+
+See `doc/oim_alg.pdf` for a description of the algorithm.
 
 License
 =======
