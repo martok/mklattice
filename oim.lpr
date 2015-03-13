@@ -177,7 +177,7 @@ begin
     );
     AnalysisOIM(atoms, 2.86, refsys);
     ex:= ExtractFileExt(filename);
-    atoms.SaveLAMMPSDumpFile(ChangeFileExt(filename,'') + '.out' + ex);
+    atoms.SaveLAMMPSDumpFile(ChangeFileExt(filename,'') + '.oim' + ex);
   finally
     FreeAndNil(atoms);
   end;
