@@ -306,9 +306,9 @@ begin
     ar:= @Atoms[i];
     NeighborCellFromPos(ar^.x, ar^.y, ar^.z, xi, yi, zi);
     ar^.NeighCell:= NeighIndex(
-      Min(NeighXCells-1, xi),
-      Min(NeighYCells-1, yi),
-      Min(NeighZCells-1, zi)
+      EnsureRange(xi, 0, NeighXCells-1),
+      EnsureRange(yi, 0, NeighYCells-1),
+      EnsureRange(zi, 0, NeighZCells-1)
     );
 
     nc:= @NeighborCells[ar^.NeighCell];
