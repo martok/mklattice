@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="-e 5 -e 10-20 &quot;C:\_tmp\work\inp\2\out.B2_feal_T0.0_v2_r40_K100_Rafe_8_afe_10_indent.dump&quot;"/>
+        <CommandLineParams Value="-e 20-160,5"/>
       </local>
     </RunParams>
     <Units Count="2">

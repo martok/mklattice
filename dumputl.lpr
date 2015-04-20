@@ -6,7 +6,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  SysUtils, getopts, Classes, uGZipStream;
+  SysUtils, getopts, Classes, uGZipStream, uSScanf;
 
 var
   InputFile: string = '';
@@ -37,7 +37,8 @@ begin
   Writeln('  --merge -m                    Merge all output into one file instead of one per frame');
   Writeln('  --gzip -z [LEVEL]             Compress output, adds .gz to file name.');
   Writeln('                                Specify LEVEL 0 to disable compression.');
-  Writeln('  --extract -x [FRAME|FROM-TO]  extract the specified frames, can be given more than once');
+  Writeln('  --extract -e [spec]           extract the specified frames, can be given more than once');
+  Writeln('                                spec:= FRAME|FIRST-LAST|FIRST-LAST,STEP');
   Writeln('  --format [FORMATSTRING]       file name pattern, positional arguments:');
   Writeln('                                0: file name without extension');
   Writeln('                                1: file name without extension or path');
@@ -81,7 +82,7 @@ procedure ProcessParams;
 var
   opt: string;
   optIndex: integer;
-  a,b,i: integer;
+  a,b,c,i: integer;
 begin
   while true do begin
     opt:= GetLongOpts(OptionShort, @OptionsLong[1], optIndex);
@@ -99,14 +100,24 @@ begin
           CompressOutput:= 5;
       end;
       'e': begin
-        i:= Pos('-',OptArg);
-        if i = 0 then begin
-          AddExtract(StrToInt(OptArg))
-        end else begin
-          a:= StrToInt(Copy(OptArg, 1, i-1));
-          b:= StrToInt(Copy(OptArg, i+1, Maxint));
-          for i:= a to b do
-            AddExtract(i);
+        if utlSScanf(OptArg,'%d-%d,%d',[@a,@b,@c]) = 0 then
+          // set all
+        else
+        if utlSScanf(OptArg,'%d-%d',[@a,@b]) = 0 then
+          c:= 1
+        else
+        if utlSScanf(OptArg,'%d',[@a]) = 0 then begin
+          b:= a;
+          c:= 1
+        end else
+        begin
+          WriteLn(ErrOutput, 'Invalid frame specifier: ',OptArg);
+          halt(1);
+        end;
+        i:= a;
+        while i <= b do begin
+          AddExtract(i);
+          inc(i, c);
         end;
       end;
       'f': begin
