@@ -34,6 +34,11 @@ implementation
 uses
   Math;
 
+function DefaultFilter(const {%H-}AtomIndex: Integer; var {%H-}AtomType: byte; const {%H-}x,{%H-}y,{%H-}z: Single) : boolean;
+begin
+  Result:= true;
+end;
+
 { TSubLatticeSC }
 
 constructor TSubLatticeSC.Create(aAtomType: Byte; aLatConst: Extended);
@@ -41,6 +46,7 @@ begin
   inherited Create;
   AtomType:= aAtomType;
   LatConst:= aLatConst;
+  Filter(@DefaultFilter, 0);
   SetOffset(0,0,0);
 end;
 
