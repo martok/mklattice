@@ -45,7 +45,6 @@
       <Unit2>
         <Filename Value="uTimer.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="uTimer"/>
       </Unit2>
       <Unit3>
         <Filename Value="uLinAlg.pas"/>

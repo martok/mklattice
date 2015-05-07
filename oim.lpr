@@ -116,7 +116,7 @@ begin
             at:= @atoms.Atoms[nn[m]];
             c:= vecCreate(at^.x, at^.y, at^.z);
             dir:= c - center;
-            if abs(vecAngleBetween(dir,lxax) - DEG_90) < 0.5 then begin
+            if abs(vecAngleBetween(dir,lxax) - DEG_90) < 0.9 then begin
               lyax:= vecNormalize(dir);
 
               // compute z axis from right-hand system
@@ -134,7 +134,7 @@ begin
               nvec[1]:= axis[1] - axis[0];
               nvec[2]:= axis[0];
 
-              if (nvec[0] >= -0.1) and (nvec[1] >= -0.1) and (nvec[2] >= -0.1) then begin
+              if (nvec[0] >= -0.2) and (nvec[1] >= -0.2) and (nvec[2] >= -0.2) then begin
                 found:= true;
                 break;
               end;
