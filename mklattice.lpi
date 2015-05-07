@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="--preset feal-do3 -c 4 --cells 5 -v 1:0.1"/>
+        <CommandLineParams Value="--preset Fe --cells 5:6:4 -o test.eam"/>
       </local>
     </RunParams>
     <Units Count="5">
@@ -50,6 +50,7 @@
       <Unit3>
         <Filename Value="uStrInput.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="uStrInput"/>
       </Unit3>
       <Unit4>
         <Filename Value="uAtomTypes.pas"/>

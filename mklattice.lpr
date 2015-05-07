@@ -7,8 +7,8 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   getopts,
-  IniFiles,
-  Classes, SysUtils, uLattice, uAtomList, uStrInput, uAtomTypes
+  IniFiles, Math, Classes, SysUtils,
+  uLattice, uAtomList, uStrInput, uAtomTypes, uLinAlg, uSScanf
   { you can add units after this };
 
 var
@@ -23,9 +23,10 @@ var
   Vacancies: array of Double;         // Sublattice vacancy densities (probability of a lattice place being empty)
   AntiSite: array of Double;          // Sublattice antisite densities (probability of a lattice place being occupied by an atom of the next (mod count) element)
   LatConst: double = 0.0;             // (fundamental) lattice constant a (not the effective lattice constant a' of complex crystals)
-  LatticeCells: integer = 1;          // number of cells in every direction
+  LatticeCells: array[0..2] of integer = (1,1,1);          // number of cells in every direction
   Kink: double = 0.0;                 //
   TopPlaneCut: double = 0.0;          //
+  Rotation: TMatrix3x3f;
 
 {
   Carve out a kink in the top layer, keeping an area that is 0.5*SimBox x $Kink*SimBox x LatConst
@@ -95,7 +96,8 @@ end;
 procedure Lattice_SC;
 begin
   TSubLatticeSC.Create(Elements[0], LatConst).
-    InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
+    SetRotation(Rotation).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 end;
@@ -103,13 +105,15 @@ end;
 procedure Lattice_BCC;
 begin
   TSubLatticeSC.Create(Elements[0], LatConst).
-    InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
+    SetRotation(Rotation).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 
   TSubLatticeSC.Create(Elements[0], LatConst).
     SetOffset(0.5, 0.5, 0.5).
-    InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
+    SetRotation(Rotation).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 end;
@@ -128,7 +132,8 @@ begin
   for i:= 0 to high(sides) do
     TSubLatticeSC.Create(Elements[0], LatConst).
       SetOffset(sides[i][0],sides[i][1],sides[i][2]).
-      InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
+      SetRotation(Rotation).
       ExportAtoms(AtomList, OverallPlaces).
       Free;
 end;
@@ -146,15 +151,17 @@ end;
 procedure Lattice_B2;
 begin
   TSubLatticeSC.Create(Elements[0], LatConst).
-    InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
     Filter(@VacancyFilter, 0).
+    SetRotation(Rotation).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 
   TSubLatticeSC.Create(Elements[1], LatConst).
     SetOffset(0.5, 0.5, 0.5).
-    InitLattice(LatticeCells, LatticeCells, LatticeCells).
+    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
     Filter(@VacancyFilter, 1).
+    SetRotation(Rotation).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 end;
@@ -166,8 +173,9 @@ var
   x,y,z,e: integer;
 begin
   TSubLatticeSC.Create(Elements[0], LatConst).
-    InitLattice(LatticeCells*2, LatticeCells*2, LatticeCells*2).
+    InitLattice(LatticeCells[0]*2, LatticeCells[1]*2, LatticeCells[2]*2).
     Filter(@VacancyFilter, 0).
+    SetRotation(Rotation).
     ExportAtoms(AtomList, OverallPlaces).
     Free;
 
@@ -177,20 +185,22 @@ begin
         e:= Alternate[(x+y+z) mod 2 = 0];
         TSubLatticeSC.Create(Elements[e], LatConst * 2).
           SetOffset(0.25 + 0.5*x, 0.25 + 0.5*y, 0.25 + 0.5*z).
-          InitLattice(LatticeCells, LatticeCells, LatticeCells).
+          InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
           Filter(@VacancyFilter, e).
+          SetRotation(Rotation).
           ExportAtoms(AtomList, OverallPlaces).
           Free;
       end;
 end;
 
 const
-  OptionsLong: array[1..12] of TOption = (
+  OptionsLong: array[1..13] of TOption = (
    (Name: 'file'; Has_Arg: Required_Argument; Flag: nil; Value: 'o'),
    (Name: 'preset'; Has_Arg: Required_Argument; Flag: nil; Value: #0),
    (Name: 'lattice'; Has_Arg: Required_Argument; Flag: nil; Value: 'l'),
    (Name: 'latconst'; Has_Arg: Required_Argument; Flag: nil; Value: 'a'),
    (Name: 'cells'; Has_Arg: Required_Argument; Flag: nil; Value: 'c'),
+   (Name: 'matrix'; Has_Arg: Required_Argument; Flag: nil; Value: 'm'),
    (Name: 'element'; Has_Arg: Required_Argument; Flag: nil; Value: 'e'),
    (Name: 'kink'; Has_Arg: Required_Argument; Flag: nil; Value: 'k'),
    (Name: 'top'; Has_Arg: Required_Argument; Flag: nil; Value: 't'),
@@ -199,7 +209,7 @@ const
    (Name: 'help'; Has_Arg: No_Argument; Flag: nil; Value: 'h'),
    (Name: ''; Has_Arg: 0; Flag: nil; Value: #0)
   );
-  OptionShort = '?hl:o:c:k:s:t:v:a:e:';
+  OptionShort = '?hl:o:c:k:s:t:v:a:e:m:';
 
 procedure ProcessOption(const opt: string; const OptArg: string);
   procedure ExecutePreset(const PresetName: string);
@@ -236,6 +246,7 @@ procedure ProcessOption(const opt: string; const OptArg: string);
 var
   i: integer;
   p: string;
+  x,y,z,a: Double;
 begin
   case opt of
     'o': begin
@@ -254,7 +265,21 @@ begin
       LatConst:= StrToFloat(OptArg);
     end;
     'c': begin
-      LatticeCells:= StrToInt(OptArg);
+      if utlSScanf(OptArg,'%d:%d:%d',[@LatticeCells[0],@LatticeCells[1],@LatticeCells[2]])<>0 then begin
+        for i:= 0 to high(LatticeCells) do
+          LatticeCells[i]:= StrToInt(OptArg);
+      end;
+    end;
+    'm': begin
+      if utlSScanf(OptArg,'identity',[])=0 then begin
+        Rotation:= IDENTITY_MATRIX;
+      end else
+      if utlSScanf(OptArg,'rot:%f,%f,%f,%f',[@x,@y,@z,@a],NeutralFormatSettings)=0 then begin
+        Rotation*= matRotation(vecCreate(x,y,z), degtorad(a));
+      end else
+      if utlSScanf(OptArg,'rotglob:%f,%f,%f,%f',[@x,@y,@z,@a],NeutralFormatSettings)=0 then begin
+        Rotation*= matRotation(matInvert(Rotation)*vecCreate(x,y,z), degtorad(a));
+      end;
     end;
     'e': begin
       if SplitIndexedArg(OptArg, i, p) then begin
@@ -321,6 +346,8 @@ begin
   OverallPlaces:= 0;
   AtomList:= TAtomList.Create;
   try
+    Rotation:= IDENTITY_MATRIX;
+
     optIndex:= 0;
     while True do begin
       opt:= GetLongOpts(OptionShort, @OptionsLong[1], optIndex);

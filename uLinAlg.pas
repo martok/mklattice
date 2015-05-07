@@ -28,13 +28,18 @@ operator*(a: TVector3f; b: Single): TVector3f;
 operator :=(a: TVector3f): string;
 
 type
-  TMatrix3x3f = array[0..3] of TVector3f;
+  TMatrix3x3f = array[0..2] of TVector3f;
+
+const
+  IDENTITY_MATRIX: TMatrix3x3f = ((1,0,0),(0,1,0),(0,0,1));
 
 function matCreate(baseX, baseY, baseZ: TVector3f): TMatrix3x3f;
 function matDeterminant(m: TMatrix3x3f): Single;
 function matInvert(m:TMatrix3x3f): TMatrix3x3f;
+function matRotation(axis: TVector3f; const angle: Double): TMatrix3x3f;
 
 operator *(a: TMatrix3x3f; b: TVector3f): TVector3f;
+operator *(a: TMatrix3x3f; b: TMatrix3x3f): TMatrix3x3f;
 
 implementation
 
@@ -133,11 +138,49 @@ begin
   );
 end;
 
+function matRotation(axis: TVector3f; const angle: Double): TMatrix3x3f;
+var
+  X, Y, Z, s, c: Double;
+begin
+  axis := vecNormalize(axis);
+  X := axis[0];
+  Y := axis[1];
+  Z := axis[2];
+  sincos(angle, s, c);
+  result := IDENTITY_MATRIX;
+  result[0] := vecCreate(
+    SQR(X) + (1-SQR(X))*c,
+    X*Y*(1-c) + Z*s,
+    X*Z*(1-c) - Y*s);
+  result[1] := vecCreate(
+    X*Y*(1-c) - Z*s,
+    SQR(Y) + (1-SQR(Y))*c,
+    Y*Z*(1-c) + X*s);
+  result[2] := vecCreate(
+    X*Z*(1-c) + Y*s,
+    Y*Z*(1-c) - X*s,
+    SQR(Z) + (1-SQR(Z))*c);
+end;
 operator*(a: TMatrix3x3f; b: TVector3f): TVector3f;
 begin
   Result[0]:= a[0,0] * b[0] + a[1,0] * b[1] + a[2,0] * b[2];
   Result[1]:= a[0,1] * b[0] + a[1,1] * b[1] + a[2,1] * b[2];
   Result[2]:= a[0,2] * b[0] + a[1,2] * b[1] + a[2,2] * b[2];
+end;
+
+operator*(a: TMatrix3x3f; b: TMatrix3x3f): TMatrix3x3f;
+var
+  x, y, i: Integer;
+  sum: Single;
+begin
+  for x := 0 to 2 do begin
+    for y := 0 to 2 do begin
+      sum := 0;
+      for i := 0 to 2 do
+        sum := sum + a[i, y] * b[x, i];
+      result[x, y] := sum;
+    end;
+  end;
 end;
 
 end.

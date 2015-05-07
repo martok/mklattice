@@ -5,7 +5,7 @@ unit uLattice;
 interface
 
 uses
-  Classes, SysUtils, uAtomList;
+  Classes, SysUtils, uAtomList, uLinAlg;
 
 type
   TLatticeArray = packed array of packed array of packed array of boolean;
@@ -15,6 +15,7 @@ type
     Offset: TSize3;
     Cell: TSize3;
     Dim: TGrid3;
+    Rotation: TMatrix3x3f;
     FilterFunction: TAtomFilter;
     FilterIndex: integer;
     constructor Create(aAtomType: Byte; aLatConst: Extended);
@@ -24,6 +25,8 @@ type
     function InitDimensions(mX, mY, mZ: Extended): TSubLatticeSC;
     // Create a field with a specific number of lattice nodes
     function InitLattice(mX, mY, mZ: Integer): TSubLatticeSC;
+    // Set rotation matrix
+    function SetRotation(aMatrix: TMatrix3x3f): TSubLatticeSC;
 
     function Filter(aFilterFunc: TAtomFilter; aIndex: integer): TSubLatticeSC;
     function ExportAtoms(const List: TAtomList; var PlaceCounter: int64): TSubLatticeSC;
@@ -48,6 +51,7 @@ begin
   LatConst:= aLatConst;
   Filter(@DefaultFilter, 0);
   SetOffset(0,0,0);
+  Rotation:= IDENTITY_MATRIX;
 end;
 
 function TSubLatticeSC.SetOffset(aX, aY, aZ: Extended): TSubLatticeSC;
@@ -83,6 +87,12 @@ begin
   Cell[2]:= mZ * LatConst;
 end;
 
+function TSubLatticeSC.SetRotation(aMatrix: TMatrix3x3f): TSubLatticeSC;
+begin
+  Result:= Self;
+  Rotation:= aMatrix;
+end;
+
 function TSubLatticeSC.Filter(aFilterFunc: TAtomFilter; aIndex: integer): TSubLatticeSC;
 begin
   Result:= Self;
@@ -91,22 +101,66 @@ begin
 end;
 
 function TSubLatticeSC.ExportAtoms(const List: TAtomList; var PlaceCounter: int64): TSubLatticeSC;
+const
+  pts: array[0..7] of array[0..2] of integer = (
+         (0,0,0),
+         (1,0,0),
+         (0,0,1),
+         (1,0,1),
+         (0,1,0),
+         (1,1,0),
+         (0,1,1),
+         (1,1,1)
+       );
+
 var
+  xl,xh,yl,yh,zl,zh: integer;
   i,j,k: integer;
-  x,y,z: Single;
+  m: TMatrix3x3f;
+  v: TVector3f;
   ia: Byte;
+
+  procedure minmax(v: single; var h,l: integer);
+  begin
+    if v > h then h:= ceil(v);
+    if v < l then l:= floor(v);
+  end;
+
+  function CellRange(v: single; max: single): Boolean;
+  begin
+    Result:= IsZero(v) or ((v>=0) and (v < max));
+  end;
+
 begin
   Result:= Self;
-  for i:= 0 to Dim[0]-1 do
-    for j:= 0 to Dim[1]-1 do
-      for k:= 0 to Dim[2]-1 do begin
-        inc(PlaceCounter);
+  // Find bounding box in rotated csys
+  m:= matInvert(Rotation);
+  v:=  m * vecCreate(0,0,0);
+  xl:= trunc(v[0]); xh:= trunc(v[0]);
+  yl:= trunc(v[1]); yh:= trunc(v[1]);
+  zl:= trunc(v[2]); zh:= trunc(v[2]);
+  for i:= 1 to high(pts) do begin
+    v:=  m * vecCreate(Dim[0] * pts[i][0], Dim[1] * pts[i][1], Dim[2] * pts[i][2]);
+    minmax(v[0], xh, xl);
+    minmax(v[1], yh, yl);
+    minmax(v[2], zh, zl);
+  end;
+
+  for i:= xl to xh-1 do
+    for j:= yl to yh-1 do
+      for k:= zl to zh-1 do begin
         ia:= AtomType;
-        x:= (i + Offset[0]) * LatConst;
-        y:= (j + Offset[1]) * LatConst;
-        z:= (k + Offset[2]) * LatConst;
-        if FilterFunction(FilterIndex,ia,x,y,z) then begin
-          List.Add(TAtomDef.Create(ia, x,y,z));
+        v:= vecCreate(
+              (i + Offset[0]) * LatConst,
+              (j + Offset[1]) * LatConst,
+              (k + Offset[2]) * LatConst);
+        v:= Rotation * v;
+        if CellRange(v[0], Cell[0]) and
+           CellRange(v[1], Cell[1]) and
+           CellRange(v[2], Cell[2]) then begin
+          inc(PlaceCounter);
+          if FilterFunction(FilterIndex,ia,v[0],v[1],v[2]) then
+            List.Add(TAtomDef.Create(ia, v[0],v[1],v[2]));
         end;
       end;
   List.MergeCell(Cell);
