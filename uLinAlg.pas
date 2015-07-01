@@ -1,6 +1,7 @@
 unit uLinAlg;
 
 {$mode objfpc}{$H+}
+{$WriteableConst OFF}
 
 interface
 
@@ -36,7 +37,8 @@ const
 function matCreate(baseX, baseY, baseZ: TVector3f): TMatrix3x3f;
 function matDeterminant(m: TMatrix3x3f): Single;
 function matInvert(m:TMatrix3x3f): TMatrix3x3f;
-function matRotation(axis: TVector3f; const angle: Double): TMatrix3x3f;
+function matRotation(axis: TVector3f; const angle: Double): TMatrix3x3f; overload;
+function matRotation(const Attitude, Bank, Heading: Double): TMatrix3x3f; overload;
 
 operator *(a: TMatrix3x3f; b: TVector3f): TVector3f;
 operator *(a: TMatrix3x3f; b: TMatrix3x3f): TMatrix3x3f;
@@ -161,6 +163,22 @@ begin
     Y*Z*(1-c) - X*s,
     SQR(Z) + (1-SQR(Z))*c);
 end;
+
+function matRotation(const Attitude, Bank, Heading: Double): TMatrix3x3f;
+var
+  sa,ca,sb,cb,sh,ch: Double;
+begin
+  sa:= sin(attitude);
+  ca:= cos(attitude);
+  sb:= sin(bank);
+  cb:= cos(bank);
+  sh:= sin(heading);
+  ch:= cos(heading);
+  result[0] := vecCreate(ch*ca, -ch*sa*cb + sh*sb, ch*sa*sb + sh*cb);
+  result[1] := vecCreate(sa, ca*cb, -ca*sb);
+  result[2] := vecCreate(-sh*ca, sh*sa*cb + ch*sb, -sh*sa*sb + ch*cb);
+end;
+
 operator*(a: TMatrix3x3f; b: TVector3f): TVector3f;
 begin
   Result[0]:= a[0,0] * b[0] + a[1,0] * b[1] + a[2,0] * b[2];

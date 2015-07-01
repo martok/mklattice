@@ -279,6 +279,9 @@ begin
       end else
       if utlSScanf(OptArg,'rotglob:%f,%f,%f,%f',[@x,@y,@z,@a],NeutralFormatSettings)=0 then begin
         Rotation*= matRotation(matInvert(Rotation)*vecCreate(x,y,z), degtorad(a));
+      end else
+      if utlSScanf(OptArg,'rotglob:%f,%f,%f',[@x,@y,@z],NeutralFormatSettings)=0 then begin
+        Rotation*= matRotation(degtorad(x),degtorad(y),degtorad(z));
       end;
     end;
     'e': begin
