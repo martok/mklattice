@@ -6,7 +6,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  SysUtils, getopts, Classes, uGZipStream, uSScanf;
+  SysUtils, getopts, Classes, uGZipStream, uSScanf, uGetOpt;
 
 var
   InputFile: string = '';
@@ -22,6 +22,7 @@ const
   MAPFILE_EXT = '.idx';
   MAPFILE_VER = 1;
 var
+  prmLast: integer;
   inpFile: THandle;
   PositionMap: array of record
     Timestep,
@@ -78,60 +79,49 @@ begin
   ExtractFrames[insertat]:= Frame;
 end;
 
-procedure ProcessParams;
+procedure ProcessOption(const opt: string; const OptArg: string);
 var
-  opt: string;
-  optIndex: integer;
   a,b,c,i: integer;
 begin
-  while true do begin
-    opt:= GetLongOpts(OptionShort, @OptionsLong[1], optIndex);
-    if opt = EndOfOptions then
-      break;
-    if opt = #0 then
-      opt:= OptionsLong[optIndex].Name;
-    case opt of
-      'r': ForceRemap:= true;
-      'm': MergeOutput:= true;
-      'z': begin
-        if OptArg > '' then
-          CompressOutput:= StrToInt(OptArg)
-        else
-          CompressOutput:= 5;
+  case opt of
+    'r': ForceRemap:= true;
+    'm': MergeOutput:= true;
+    'z': begin
+      if OptArg > '' then
+        CompressOutput:= StrToInt(OptArg)
+      else
+        CompressOutput:= 5;
+    end;
+    'e': begin
+      if utlSScanf(OptArg,'%d-%d,%d',[@a,@b,@c]) = 0 then
+        // set all
+      else
+      if utlSScanf(OptArg,'%d-%d',[@a,@b]) = 0 then
+        c:= 1
+      else
+      if utlSScanf(OptArg,'%d',[@a]) = 0 then begin
+        b:= a;
+        c:= 1
+      end else
+      begin
+        WriteLn(ErrOutput, 'Invalid frame specifier: ',OptArg);
+        halt(1);
       end;
-      'e': begin
-        if utlSScanf(OptArg,'%d-%d,%d',[@a,@b,@c]) = 0 then
-          // set all
-        else
-        if utlSScanf(OptArg,'%d-%d',[@a,@b]) = 0 then
-          c:= 1
-        else
-        if utlSScanf(OptArg,'%d',[@a]) = 0 then begin
-          b:= a;
-          c:= 1
-        end else
-        begin
-          WriteLn(ErrOutput, 'Invalid frame specifier: ',OptArg);
-          halt(1);
-        end;
-        i:= a;
-        while i <= b do begin
-          AddExtract(i);
-          inc(i, c);
-        end;
-      end;
-      'f': begin
-        OutputNameFormat:= OptArg;
-      end;
-      '?',
-      'h': begin
-        Usage;
-        halt(0);
+      i:= a;
+      while i <= b do begin
+        AddExtract(i);
+        inc(i, c);
       end;
     end;
+    'f': begin
+      OutputNameFormat:= OptArg;
+    end;
+    '?',
+    'h': begin
+      Usage;
+      halt(0);
+    end;
   end;
-  optIndex:= OptInd;
-  InputFile:= ParamStr(optIndex);
 end;
 
 procedure SaveMap;
@@ -339,7 +329,8 @@ begin
     Halt(1);
   end;
 
-  ProcessParams;
+  prmLast:= HandleAllOptions(OptionShort, @OptionsLong, @ProcessOption);
+  InputFile:= ParamStr(prmLast);
 
   if InputFile='' then begin
     WriteLn(StdErr, 'Error: no input file given');

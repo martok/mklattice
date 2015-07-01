@@ -10,7 +10,7 @@
       </Flags>
       <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
-      <Title Value="oim"/>
+      <Title Value="analysis"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -34,13 +34,12 @@
     </RunParams>
     <Units Count="4">
       <Unit0>
-        <Filename Value="oim.lpr"/>
+        <Filename Value="analysis.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
         <Filename Value="uLammpsFile.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="uLammpsFile"/>
       </Unit1>
       <Unit2>
         <Filename Value="uTimer.pas"/>
@@ -49,7 +48,6 @@
       <Unit3>
         <Filename Value="uLinAlg.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="uLinAlg"/>
       </Unit3>
     </Units>
   </ProjectOptions>
@@ -57,7 +55,7 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="oim"/>
+      <Filename Value="analysis"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>

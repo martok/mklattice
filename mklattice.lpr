@@ -8,7 +8,7 @@ uses
   {$ENDIF}{$ENDIF}
   getopts,
   IniFiles, Math, Classes, SysUtils,
-  uLattice, uAtomList, uStrInput, uAtomTypes, uLinAlg, uSScanf
+  uLattice, uAtomList, uStrInput, uAtomTypes, uLinAlg, uSScanf, uGetOpt
   { you can add units after this };
 
 var
@@ -336,9 +336,6 @@ begin
   end;
 end;
 
-var
-  optIndex: integer;
-  opt: string;
 begin
   LoadNeutralFormatSettings;
   Randomize;
@@ -348,15 +345,7 @@ begin
   try
     Rotation:= IDENTITY_MATRIX;
 
-    optIndex:= 0;
-    while True do begin
-      opt:= GetLongOpts(OptionShort, @OptionsLong[1], optIndex);
-      if opt = EndOfOptions then
-        break;
-      if opt = #0 then
-        opt:= OptionsLong[optIndex].Name;
-      ProcessOption(opt, optArg);
-    end;
+    HandleAllOptions(OptionShort, @OptionsLong, @ProcessOption);
 
     case LatticeType of
       'SC': Lattice_SC;

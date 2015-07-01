@@ -25,14 +25,16 @@ with the input file to speed up any call after the first initial scan.
 
 File name formatting uses normal Pascal [format strings](http://www.freepascal.org/docs-html/rtl/sysutils/format.html).
 
-oim
----
-Compute Orientaion Imaging Maps from Dump files.
+analysis
+--------
+Analyse a LAMMPS Dump File. Implemented algorithm:
 
-Takes one argument, the LAMMPS Dump File (may be .gz), and saves as the same name with ".oim" prepended
+  * Compute Orientation Imaging Maps
+    See `doc/oim_alg.pdf` for a description of the algorithm.
+
+Takes one file as last argument, the LAMMPS Dump File (may be .gz), and saves as the same name with the algorithm prepended 
 to the file extension. If the input file was compressed, the output file will be as well.
 
-See `doc/oim_alg.pdf` for a description of the algorithm.
 
 License
 =======

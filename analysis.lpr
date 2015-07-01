@@ -1,4 +1,4 @@
-program oim;
+program analysis;
 
 {$mode objfpc}{$H+}
 
@@ -7,9 +7,54 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   SysUtils,
-  uStrInput,
+  uStrInput, getopts, uGetOpt, uSScanf,
   uLammpsFile, uTimer, uLinAlg;
 
+var
+  InputFile: string = '';
+  ExpectedLatConst: Single = 2.86;
+  analysesEnabled: set of (aeOIM) = [];
+  oimRefSystem: TMatrix3x3f;
+
+procedure Usage;
+begin
+  Writeln('Usage: ',ExtractFileName(ParamStr(0)), ' [options] [--] filename');
+  Writeln('Options:');
+  Writeln('  --help                        This text');
+  Writeln('  --oim                         Enable Analysis: OIM');
+  Writeln('  --reference -r m00,m01,m02,m11,...,m22');
+  Writeln('                                Define reference coordinate system');
+end;
+
+const
+  OptionsLong: array[1..4] of TOption = (
+   (Name: 'help'; Has_Arg: No_Argument; Flag: nil; Value: 'h'),
+   (Name: 'oim'; Has_Arg: No_Argument; Flag: nil; Value: #0),
+   (Name: 'reference'; Has_Arg: Required_Argument; Flag: nil; Value: 'r'),
+   (Name: ''; Has_Arg: 0; Flag: nil; Value: #0)
+  );
+  OptionShort = '?hr:';
+
+
+procedure ProcessOption(const opt: string; const OptArg: string);
+var
+  a,b,c,d,e,f,g,h,j: Double;
+begin
+  case opt of
+    'oim': Include(analysesEnabled, aeOIM);
+    'r': if utlSScanf(OptArg,'%f,%f,%f,%f,%f,%f,%f,%f,%f',[@a,@b,@c,@d,@e,@f,@g,@h,@j],NeutralFormatSettings) = 0 then
+           oimRefSystem:= matCreate(
+              vecCreate(a, b, c),
+              vecCreate(d, e, f),
+              vecCreate(g, h, j)
+            );
+    '?',
+    'h': begin
+      Usage;
+      halt(0);
+    end;
+  end;
+end;
 
 procedure AnalysisTest(atoms: TLammpsFile);
 var
@@ -163,34 +208,34 @@ end;
 procedure ProcessFile(const filename: string);
 var
   atoms: TLammpsFile;
-  refsys: TMatrix3x3f;
   ex: String;
 begin
   atoms:= TLammpsFile.Create;
   try
     atoms.LoadLAMMPSDumpFile(filename);
-    atoms.PrepareNeighborCells(10);
-    refsys:= matCreate(
-      vecCreate(1, 0, 0),
-      vecCreate(0, 1, 0),
-      vecCreate(0, 0, 1)
-    );
-    AnalysisOIM(atoms, 2.86, refsys);
-    ex:= ExtractFileExt(filename);
-    atoms.SaveLAMMPSDumpFile(ChangeFileExt(filename,'') + '.oim' + ex);
+    atoms.PrepareNeighborCells(ExpectedLatConst * 3);
+
+    if aeOIM in analysesEnabled then begin
+      WriteLn('Computing OIM...');
+      AnalysisOIM(atoms, ExpectedLatConst, oimRefSystem);
+      ex:= ExtractFileExt(filename);
+      atoms.SaveLAMMPSDumpFile(ChangeFileExt(filename,'') + '.oim' + ex);
+    end;
   finally
     FreeAndNil(atoms);
   end;
 end;
 
+var
+  lastopt: Integer;
 begin
   LoadNeutralFormatSettings;
 
-  if Paramcount <> 1 then begin
-    WriteLn('Usage: ', ExtractFileName(ParamStr(0)), ' Filename');
-    halt(1);
-  end;
+  oimRefSystem:= IDENTITY_MATRIX;
 
-  ProcessFile(ParamStr(1));
+  lastopt:= HandleAllOptions(OptionShort, @OptionsLong, @ProcessOption);
+  InputFile:= ParamStr(lastopt);
+
+  ProcessFile(InputFile);
 end.
 

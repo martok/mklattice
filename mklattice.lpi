@@ -29,10 +29,15 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="--preset Fe --cells 5:6:4 -o test.eam"/>
+        <CommandLineParams Value="mklattice --preset Fe -m rotglob:307,68,66 --cells 80:80:50 -o a.eam"/>
       </local>
     </RunParams>
-    <Units Count="5">
+    <RequiredPackages Count="1">
+      <Item1>
+        <PackageName Value="LCL"/>
+      </Item1>
+    </RequiredPackages>
+    <Units Count="6">
       <Unit0>
         <Filename Value="mklattice.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -40,23 +45,23 @@
       <Unit1>
         <Filename Value="uLattice.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="uLattice"/>
       </Unit1>
       <Unit2>
         <Filename Value="uAtomList.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="uAtomList"/>
       </Unit2>
       <Unit3>
         <Filename Value="uStrInput.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="uStrInput"/>
       </Unit3>
       <Unit4>
         <Filename Value="uAtomTypes.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="uAtomTypes"/>
       </Unit4>
+      <Unit5>
+        <Filename Value="uGetOpt.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit5>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
