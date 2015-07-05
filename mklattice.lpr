@@ -282,6 +282,9 @@ begin
       end else
       if utlSScanf(OptArg,'rotglob:%f,%f,%f',[@x,@y,@z],NeutralFormatSettings)=0 then begin
         Rotation*= matRotation(degtorad(x),degtorad(y),degtorad(z));
+      end else
+      if utlSScanf(OptArg,'rotbunge:%f,%f,%f',[@x,@y,@z],NeutralFormatSettings)=0 then begin
+        Rotation*= matRotationBunge(degtorad(x),degtorad(y),degtorad(z));
       end;
     end;
     'e': begin

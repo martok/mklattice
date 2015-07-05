@@ -39,6 +39,7 @@ function matDeterminant(m: TMatrix3x3f): Single;
 function matInvert(m:TMatrix3x3f): TMatrix3x3f;
 function matRotation(axis: TVector3f; const angle: Double): TMatrix3x3f; overload;
 function matRotation(const Attitude, Bank, Heading: Double): TMatrix3x3f; overload;
+function matRotationBunge(const phi1, Phi, phi2: Double): TMatrix3x3f; overload;
 
 operator *(a: TMatrix3x3f; b: TVector3f): TVector3f;
 operator *(a: TMatrix3x3f; b: TMatrix3x3f): TMatrix3x3f;
@@ -177,6 +178,27 @@ begin
   result[0] := vecCreate(ch*ca, -ch*sa*cb + sh*sb, ch*sa*sb + sh*cb);
   result[1] := vecCreate(sa, ca*cb, -ca*sb);
   result[2] := vecCreate(-sh*ca, sh*sa*cb + ch*sb, -sh*sa*sb + ch*cb);
+end;
+
+(*
+EBSD Tutorial EBSD Explained, Oxford Instruments:
+
+The most commonly used way is to use the Bunge notation where the three Euler angles:
+(phi1, phi, phi2) represent the following rotations, which are shown schematically in Fig. 13:
+
+1. rotation of phi1 about the z-axis followed by,
+2. rotation of phi about the rotated x-axis followed by,
+3. rotation of phi2 about the rotated z-axis
+*)
+function matRotationBunge(const phi1, Phi, phi2: Double): TMatrix3x3f;
+var
+  Z2, X, Z1: TMatrix3x3f;
+begin
+  Z1:= matRotation(vecCreate(0,0,1), phi1);
+  X:= matRotation(vecCreate(1,0,0), phi);
+  Z2:= matRotation(vecCreate(0,0,1), phi2);
+
+  Result:= Z2 * X * Z1;
 end;
 
 operator*(a: TMatrix3x3f; b: TVector3f): TVector3f;
