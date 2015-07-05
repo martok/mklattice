@@ -57,6 +57,7 @@ type
 
     procedure Clear;
     procedure LoadLAMMPSDumpFile(const aFileName: string);
+    procedure LoadLAMMPSDataFile(const aFileName: string);
     procedure SaveLAMMPSDumpFile(const aFileName: string);
     function FieldIndex(const Fieldname: string; const CanCreate: boolean): integer;
 
@@ -71,6 +72,9 @@ type
   end;
 
 implementation
+
+uses
+  uSScanf;
 
 procedure SplitSpaces(s:string; out Result: TStringArr);
 var
@@ -169,7 +173,7 @@ begin
             fy:=  FieldDefs.IndexOf('y');
             fz:=  FieldDefs.IndexOf('z');
             if (fx<0) or (fy<0) or (fz<0) then
-              raise ELammpsError.CreateFmt('All Coordinates must be specified in the same mode', [i]);
+              raise ELammpsError.CreateFmt('All Coordinates must be specified in the same mode', []);
           end else
           if FieldDefs.IndexOf('xs') >=0 then begin
             cmode:= 1;
@@ -177,9 +181,9 @@ begin
             fy:= FieldDefs.IndexOf('ys');
             fz:= FieldDefs.IndexOf('zs');
             if (fx<0) or (fy<0) or (fz<0) then
-              raise ELammpsError.CreateFmt('All Coordinates must be specified in the same mode', [i]);
+              raise ELammpsError.CreateFmt('All Coordinates must be specified in the same mode', []);
           end else
-            raise ELammpsError.CreateFmt('Only the following coordinate modes are supported: x,xs', [i]);
+            raise ELammpsError.CreateFmt('Only the following coordinate modes are supported: x,xs', []);
 
           for i:= 0 to high(Atoms) do begin
             ReadLn(ld, l);
@@ -204,6 +208,95 @@ begin
         end;
       end;
     end;
+  finally
+    Close(ld);
+  end;
+  tmr.Stop;
+  tmr.OutputTime('File read time');
+  WriteLn('Read ',Length(Atoms),' atoms from file.');
+end;
+
+procedure TLammpsFile.LoadLAMMPSDataFile(const aFileName: string);
+var
+  ld: TextFile;
+  comment, item: String;
+  k: int64;
+  lsp: TStringArr;
+  i, atypes: integer;
+  tmr: TTimer;
+  fx,fy,fz,ftype,fid: integer;
+begin
+  Clear;
+  WriteLn('Reading file ', aFileName);
+
+  tmr.Start;
+  AssignFile(ld, aFileName);
+  if AnsiEndsText('.gz', aFileName) then
+    GZipInitFile(ld);
+  Reset(ld);
+  try
+    // comment
+    ReadLn(ld, comment);
+    ReadLn(ld);
+    // counts
+    ReadLn(ld, item);
+    if utlSScanf(item, '%D atoms',[@k]) <> 0 then
+      raise ELammpsError.CreateFmt('Expected number of atoms', []);
+    SetLength(Atoms, k);
+    ReadLn(ld, item);
+    if utlSScanf(item, '%d atom types',[@atypes]) <> 0 then
+      raise ELammpsError.CreateFmt('Expected number of atom types', []);
+    ReadLn(ld);
+    // bounding box
+    ReadLn(ld, item);
+    SplitSpaces(item, lsp);
+    BBox.xlo:= StrToFloat(lsp[0]);
+    BBox.xhi:= StrToFloat(lsp[1]);
+    ReadLn(ld, item);
+    SplitSpaces(item, lsp);
+    BBox.ylo:= StrToFloat(lsp[0]);
+    BBox.yhi:= StrToFloat(lsp[1]);
+    ReadLn(ld, item);
+    SplitSpaces(item, lsp);
+    BBox.zlo:= StrToFloat(lsp[0]);
+    BBox.zhi:= StrToFloat(lsp[1]);
+    Writeln('Bounding box from file:');
+    BBoxPrint;
+    ReadLn(ld);
+    // masses
+    Readln(ld, item);
+    if item <> 'Masses' then
+      raise ELammpsError.CreateFmt('Expected Masses section', []);
+    ReadLn(ld);
+    for i:= 1 to atypes do
+      ReadLn(ld, item);
+    ReadLn(ld);
+
+    // atoms
+    Readln(ld, item);
+    if item <> 'Atoms # atomic' then
+      raise ELammpsError.CreateFmt('Expected Atoms/atomic section', []);
+    ReadLn(ld);
+
+    fid:= FieldDefs.Add('id');
+    ftype:= FieldDefs.Add('type');
+    fx:= FieldDefs.Add('x');
+    fy:= FieldDefs.Add('y');
+    fz:= FieldDefs.Add('z');
+
+    for i:= 0 to high(Atoms) do begin
+      ReadLn(ld, item);
+      With Atoms[i] do begin
+        SplitSpaces(item, Fields);
+        if Length(Fields) <> FieldDefs.Count then
+          raise ELammpsError.CreateFmt('Atom data field count mismatch on atom %d', [i]);
+        x:= StrToFloat(Fields[fx]);
+        y:= StrToFloat(Fields[fy]);
+        z:= StrToFloat(Fields[fz]);
+      end;
+    end;
+
+    // skip velocities
   finally
     Close(ld);
   end;
