@@ -8,7 +8,7 @@ uses
   {$ENDIF}{$ENDIF}
   SysUtils,
   uStrInput, getopts, uGetOpt, uSScanf,
-  uLammpsFile, uTimer, uLinAlg;
+  uLammpsFile, uTimer, uLinAlg, Math;
 
 var
   InputFile: string = '';
@@ -82,7 +82,7 @@ end;
      LatConst   - exptected lattice constant
      RefSystem  - Reference coordinate system.
                   Essentially, X and Y components span the cut plane and Z component is the normal vector
-                  (pointing into material), although only Z is actually used in computation.
+                  (pointing away from material), although only Z is actually used in computation.
 
    Results are stored in 3 attributes 'oim[rgb]', defaulting to (0,0,0) on atoms where no result is found.
    Association is in the standard triangle of the IPF, being r = <100>, g = <011>, b = <111>
@@ -92,22 +92,27 @@ const
   DEG_22 = 22/180*pi;
   DEG_45 = 45/180*pi;
   DEG_90 = 90/180*pi;
+  PERM_3 : array[0..5] of array[0..2] of integer = ((0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0));
+  FLOAT_EPS = 1E-6;
+  COLOR_THRESH = -0.01;
 var
   tmr: TTimer;
-  fox,foy,foz: Integer;
-  i, n, m: integer;
+  fox,foy,foz,fstate: Integer;
+  i, n, m, k: integer;
   nn: TAtomRefs;
   at: PAtomRecord;
   found: boolean;
   center,c,dir,nvec, axis,
-  lxax, lyax, lzax: TVector3f;
+  lxax, lyax, lzax, stereo, asort: TVector3f;
   d,avgd, llattice: Single;
   proj: TMatrix3x3f;
+  state: integer;
 begin
   tmr.Start;
   fox:= atoms.FieldIndex('oimr',true);
   foy:= atoms.FieldIndex('oimg',true);
   foz:= atoms.FieldIndex('oimb',true);
+  fstate:= atoms.FieldIndex('state',true);
 
   for i:= 0 to High(atoms.Atoms) do begin
     at:= @atoms.Atoms[i];
@@ -118,7 +123,9 @@ begin
 
     nvec:= NULL_VECTOR;
     axis:= NULL_VECTOR;
+    state:= 0;
     if Length(nn) = 15 then begin
+      state:= 10;
       // compute local lattice constant from nearest neighbors (reflects lattice distortion)
       avgd:= 0;
       for n:= 1 to 8 do begin
@@ -145,6 +152,7 @@ begin
 
       // looks like BCC?
       if abs(llattice - avgd) < LatConst * 0.1 then begin
+        state:= 20;
 
         // iterate over all 24 right-hand systems and find the one that results in a projection inside the standard triangle
 
@@ -162,6 +170,7 @@ begin
             c:= vecCreate(at^.x, at^.y, at^.z);
             dir:= c - center;
             if abs(vecAngleBetween(dir,lxax) - DEG_90) < 0.9 then begin
+              state:= 30;
               lyax:= vecNormalize(dir);
 
               // compute z axis from right-hand system
@@ -173,19 +182,56 @@ begin
               // compute projected reference axis
               axis:= matInvert(proj) * RefSystem[2];
 
-              // decompose into r*(001),g*(011),b*(111) parts
-              // {{r -> z - y, g -> y - x, b -> x}}
-              nvec[0]:= axis[2] - axis[1];
-              nvec[1]:= axis[1] - axis[0];
-              nvec[2]:= axis[0];
+              axis:= vecNormalize(axis);
 
-              if (nvec[0] >= -0.2) and (nvec[1] >= -0.2) and (nvec[2] >= -0.2) then begin
-                found:= true;
-                break;
+              // compute stereoscopic projection
+              stereo[0]:= axis[0] / Max(1E-6,1 - axis[2]);
+              stereo[1]:= axis[1] / Max(1E-6,1 - axis[2]);
+              stereo[2]:= 0;
+
+              // quick check for standard triangle
+              if not (
+                (stereo[0] >= -FLOAT_EPS) and (stereo[1] >= -FLOAT_EPS) and     // first quadrant
+                (stereo[1] <= stereo[0] + FLOAT_EPS) and                        // below y = x
+                (stereo[0] < 0.5)                                               // main triangle part
+                ) then begin
+                continue;
               end;
+              state:= 40;
+
+              // for symmetry reasons, we will always get Z negative (lower half of the unit sphere when doing the stereographic projection)
+              // but can change that sign (or, mathematically, the sign of the X and Y components (symmetry of the 8 octants) and then invert the whole vector)
+              axis[2] *= -1;
+
+              // We now decompose into factors of <001>,<011> and <111>
+              // Those are direction kinds, we work with just one set here. By symmetry, we would also get those as candidates
+              // if we would also take left-hand coordinate systems, but for pure cubic lattices, we can just take permutations of the values we already have.
+
+              for k:= 0 to high(PERM_3) do begin
+                asort[0]:= axis[PERM_3[k,0]];
+                asort[1]:= axis[PERM_3[k,1]];
+                asort[2]:= axis[PERM_3[k,2]];
+
+
+                // decompose into r*(001),g*(011),b*(111) parts
+                // {{r -> z - y, g -> y - x, b -> x}}
+                nvec[0]:= asort[2] - asort[1];
+                nvec[1]:= asort[1] - asort[0];
+                nvec[2]:= asort[0];
+
+                if i = 111722 then begin
+                  WriteLn('candidate: ', String(nvec), '        ', String(stereo), '        ', String(asort));
+                end;
+
+                if (i <> 111722) and (nvec[0] >= COLOR_THRESH) and (nvec[1] >= COLOR_THRESH) and (nvec[2] >= COLOR_THRESH) then begin
+                  state:= 99;
+                  found:= true;
+                  break;
+                end;
+              end; // for
+              if found then
+                break;
             end;
-            if found then
-              break;
           end; //for
           // did we find a system? good
           if found then
@@ -200,6 +246,7 @@ begin
     atoms.Atoms[i].Fields[fox]:= FloatToStr(nvec[0]);
     atoms.Atoms[i].Fields[foy]:= FloatToStr(nvec[1]);
     atoms.Atoms[i].Fields[foz]:= FloatToStr(nvec[2]);
+    atoms.Atoms[i].Fields[fstate]:= IntToStr(state);
   end;
   tmr.Stop;
   tmr.OutputTime('Analysis time');

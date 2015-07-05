@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="twins.dump"/>
+        <CommandLineParams Value="--oim --reference 0.707,0.707,0,0,0,1,0.707,-0.707,0 a.dump"/>
       </local>
     </RunParams>
     <Units Count="4">
