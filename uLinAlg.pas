@@ -40,6 +40,8 @@ function matInvert(m:TMatrix3x3f): TMatrix3x3f;
 function matRotation(axis: TVector3f; const angle: Double): TMatrix3x3f; overload;
 function matRotation(const Attitude, Bank, Heading: Double): TMatrix3x3f; overload;
 function matRotationBunge(const phi1, Phi, phi2: Double): TMatrix3x3f;
+function matRotationRoe(const psi, Phi, phi2: Double): TMatrix3x3f;
+function matRotationKocks(const Psi, Theta, Phi: Double): TMatrix3x3f;
 
 operator *(a: TMatrix3x3f; b: TVector3f): TVector3f;
 operator *(a: TMatrix3x3f; b: TMatrix3x3f): TMatrix3x3f;
@@ -203,7 +205,32 @@ begin
   result[0] := vecCreate(ca*cc-sa*sc*cb, sa*cc+ca*sc*cb, sc*sb);
   result[1] := vecCreate(-ca*sc-sa*cc*cb, -sa*sc+ca*cc*cb, cc*sb);
   result[2] := vecCreate(sa*sb, -ca*sb, cb);
+end;
 
+function matRotationRoe(const psi, Phi, phi2: Double): TMatrix3x3f;
+// from (Psi, Phi, phi) here (a,b,c)
+var
+  sa,sb,sc,ca,cb,cc: Single;
+begin
+  SinCos(psi,sa,ca);
+  SinCos(Phi,sb,cb);
+  SinCos(Phi2,sc,cc);
+  result[0] := vecCreate(-sa*sc + ca*cc*cb, ca*sc + sa*cc*cb, -cc*sb);
+  result[1] := vecCreate(-sa*cc - ca*sc*cb, ca*cc-sa*sc*cb, sc*sb);
+  result[2] := vecCreate(ca*sb, sa*sb, cb);
+end;
+
+function matRotationKocks(const Psi, Theta, Phi: Double): TMatrix3x3f;
+// from (Psi, Theta, Phi) here (p,t,f)
+var
+  sp,st,sf,cp,ct,cf: Single;
+begin
+  SinCos(psi,sp,cp);
+  SinCos(Theta,st,ct);
+  SinCos(Phi,sf,cf);
+  result[0] := vecCreate(-sp*sf-cp*cf*ct, cp*sf-sp*cf*ct, cf*st);
+  result[1] := vecCreate(sp*cf-cp*sf*ct, -cp*cf-sp*sf*ct, sf*st);
+  result[2] := vecCreate(cp*st, sp*st, ct);
 end;
 
 operator*(a: TMatrix3x3f; b: TVector3f): TVector3f;
