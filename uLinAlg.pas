@@ -39,10 +39,12 @@ function matDeterminant(m: TMatrix3x3f): Single;
 function matInvert(m:TMatrix3x3f): TMatrix3x3f;
 function matRotation(axis: TVector3f; const angle: Double): TMatrix3x3f; overload;
 function matRotation(const Attitude, Bank, Heading: Double): TMatrix3x3f; overload;
-function matRotationBunge(const phi1, Phi, phi2: Double): TMatrix3x3f; overload;
+function matRotationBunge(const phi1, Phi, phi2: Double): TMatrix3x3f;
 
 operator *(a: TMatrix3x3f; b: TVector3f): TVector3f;
 operator *(a: TMatrix3x3f; b: TMatrix3x3f): TMatrix3x3f;
+
+operator :=(a: TMatrix3x3f): string;
 
 implementation
 
@@ -191,14 +193,17 @@ The most commonly used way is to use the Bunge notation where the three Euler an
 3. rotation of phi2 about the rotated z-axis
 *)
 function matRotationBunge(const phi1, Phi, phi2: Double): TMatrix3x3f;
+// from (phi1, Phi, phi2) here (a,b,c)
 var
-  Z2, X, Z1: TMatrix3x3f;
+  sa,sb,sc,ca,cb,cc: Single;
 begin
-  Z1:= matRotation(vecCreate(0,0,1), phi1);
-  X:= matRotation(vecCreate(1,0,0), phi);
-  Z2:= matRotation(vecCreate(0,0,1), phi2);
+  SinCos(phi1,sa,ca);
+  SinCos(Phi,sb,cb);
+  SinCos(phi2,sc,cc);
+  result[0] := vecCreate(ca*cc-sa*sc*cb, sa*cc+ca*sc*cb, sc*sb);
+  result[1] := vecCreate(-ca*sc-sa*cc*cb, -sa*sc+ca*cc*cb, cc*sb);
+  result[2] := vecCreate(sa*sb, -ca*sb, cb);
 
-  Result:= Z2 * X * Z1;
 end;
 
 operator*(a: TMatrix3x3f; b: TVector3f): TVector3f;
@@ -221,6 +226,11 @@ begin
       result[x, y] := sum;
     end;
   end;
+end;
+
+operator:=(a: TMatrix3x3f): string;
+begin
+  Result:= format('{%s, %s, %s}',[String(a[0]), String(a[1]), String(a[2])]);
 end;
 
 end.
