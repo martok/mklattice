@@ -337,7 +337,7 @@ begin
     Halt(1);
   end;
 
-  inpFile:= FileOpen(InputFile, fmOpenRead);
+  inpFile:= FileOpen(InputFile, fmOpenRead or fmShareDenyWrite);
   if inpFile = 0 then begin
     WriteLn(StdErr, 'Error: can''t open input file');
     Halt(1);
