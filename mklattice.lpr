@@ -246,7 +246,7 @@ procedure ProcessOption(const opt: string; const OptArg: string);
 var
   i: integer;
   p: string;
-  x,y,z,a: Double;
+  x,y,z,a,m10,m11,m12,m20,m21,m22: Double;
 begin
   case opt of
     'o': begin
@@ -291,6 +291,9 @@ begin
       end else
       if utlSScanf(OptArg,'kocks:%f,%f,%f',[@x,@y,@z],NeutralFormatSettings)=0 then begin
         Rotation*= matRotationKocks(degtorad(x),degtorad(y),degtorad(z));
+      end else
+      if utlSScanf(OptArg,'load:%f,%f,%f,%f,%f,%f,%f,%f,%f',[@x,@y,@z,@m10,@m11,@m12,@m20,@m21,@m22],NeutralFormatSettings)=0 then begin
+        Rotation*= matCreate(vecCreate(x,y,z),vecCreate(m10,m11,m12),vecCreate(m20,m21,m22));
       end;
     end;
     'e': begin
