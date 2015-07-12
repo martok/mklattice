@@ -13,6 +13,7 @@ uses
 var
   InputFile: string = '';
   ExpectedLatConst: Single = 2.86;
+  InputFileType: (ftDump, ftData) = ftDump;
   analysesEnabled: set of (aeOIM) = [];
   oimRefSystem: TMatrix3x3f;
 
@@ -21,19 +22,21 @@ begin
   Writeln('Usage: ',ExtractFileName(ParamStr(0)), ' [options] [--] filename');
   Writeln('Options:');
   Writeln('  --help                        This text');
+  Writeln('  --read -f DUMP|DATA           Input File Format, defautl: DUMP');
   Writeln('  --oim                         Enable Analysis: OIM');
   Writeln('  --reference -r m00,m01,m02,m11,...,m22');
   Writeln('                                Define reference coordinate system');
 end;
 
 const
-  OptionsLong: array[1..4] of TOption = (
+  OptionsLong: array[1..5] of TOption = (
    (Name: 'help'; Has_Arg: No_Argument; Flag: nil; Value: 'h'),
+   (Name: 'read'; Has_Arg: Required_Argument; Flag: nil; Value: 'f'),
    (Name: 'oim'; Has_Arg: No_Argument; Flag: nil; Value: #0),
    (Name: 'reference'; Has_Arg: Required_Argument; Flag: nil; Value: 'r'),
    (Name: ''; Has_Arg: 0; Flag: nil; Value: #0)
   );
-  OptionShort = '?hr:';
+  OptionShort = '?hf:r:';
 
 
 procedure ProcessOption(const opt: string; const OptArg: string);
@@ -41,6 +44,13 @@ var
   a,b,c,d,e,f,g,h,j: Double;
 begin
   case opt of
+    'f': case LowerCase(OptArg) of
+      'dump': InputFileType:= ftDump;
+      'data': InputFileType:= ftData;
+    else
+      WriteLn(ErrOutput, 'Invalid input file type: ', OptArg);
+      Halt(1);
+    end;
     'oim': Include(analysesEnabled, aeOIM);
     'r': if utlSScanf(OptArg,'%f,%f,%f,%f,%f,%f,%f,%f,%f',[@a,@b,@c,@d,@e,@f,@g,@h,@j],NeutralFormatSettings) = 0 then
            oimRefSystem:= matCreate(
@@ -95,14 +105,31 @@ const
   PERM_3 : array[0..5] of array[0..2] of integer = ((0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0));
   FLOAT_EPS = 1E-6;
   COLOR_THRESH = -0.01;
+
+  function StereographicProjection(const A: TVector3f): TVector3f;
+  begin
+    Result[0]:= A[0] / Max(1E-6,1 - A[2]);
+    Result[1]:= A[1] / Max(1E-6,1 - A[2]);
+    Result[2]:= 0;
+  end;
+
+  function StereoIsInStandardTriangle(const A: TVector3f): boolean;
+  begin
+    Result:=
+      (A[0] >= -FLOAT_EPS) and (A[1] >= -FLOAT_EPS) and     // first quadrant
+      (A[1] <= A[0] + FLOAT_EPS) and                        // below y = x
+      (A[0] < 0.5)                                          // main triangle part
+      ;
+  end;
+
 var
   tmr: TTimer;
   fox,foy,foz,fstate: Integer;
   i, n, m, k: integer;
   nn: TAtomRefs;
-  at: PAtomRecord;
+  particle, at: PAtomRecord;
   found: boolean;
-  center,c,dir,nvec, axis,
+  center,c,dir,ipfcolor, axis,
   lxax, lyax, lzax, stereo, asort: TVector3f;
   d,avgd, llattice: Single;
   proj: TMatrix3x3f;
@@ -114,14 +141,16 @@ begin
   foz:= atoms.FieldIndex('oimb',true);
   fstate:= atoms.FieldIndex('state',true);
 
-  for i:= 0 to High(atoms.Atoms) do begin
-    at:= @atoms.Atoms[i];
+  WriteLn('Using reference vector ', String(RefSystem[2]));
 
-    center:= vecCreate(at^.x, at^.y, at^.z);
+  for i:= 0 to High(atoms.Atoms) do begin
+    particle:= @atoms.Atoms[i];
+
+    center:= vecCreate(particle^.x, particle^.y, particle^.z);
 
     nn:= atoms.GetNeighbors(i, LatConst * 1.1);
 
-    nvec:= NULL_VECTOR;
+    ipfcolor:= NULL_VECTOR;
     axis:= NULL_VECTOR;
     state:= 0;
     if Length(nn) = 15 then begin
@@ -164,7 +193,7 @@ begin
           dir:= c - center;
           lxax:= vecNormalize(dir);
 
-          // find second vector: axis that is most similar to (010) and perpendicular to the local (100)
+          // find second vector: axis that is perpendicular to the local (100)
           for m:= 9 to 14 do begin
             at:= @atoms.Atoms[nn[m]];
             c:= vecCreate(at^.x, at^.y, at^.z);
@@ -184,19 +213,20 @@ begin
 
               axis:= vecNormalize(axis);
 
-              // compute stereoscopic projection
-              stereo[0]:= axis[0] / Max(1E-6,1 - axis[2]);
-              stereo[1]:= axis[1] / Max(1E-6,1 - axis[2]);
-              stereo[2]:= 0;
+              // compute stereographic projection
+              stereo:= StereographicProjection(axis);
 
-              // quick check for standard triangle
-              if not (
-                (stereo[0] >= -FLOAT_EPS) and (stereo[1] >= -FLOAT_EPS) and     // first quadrant
-                (stereo[1] <= stereo[0] + FLOAT_EPS) and                        // below y = x
-                (stereo[0] < 0.5)                                               // main triangle part
-                ) then begin
-                continue;
+              // quick check for standard triangle, the color decomposition will give us a definitive answer
+              if not StereoIsInStandardTriangle(stereo) then begin
+                // can we cheat and use simple symmetry to get into standard triangle? This may save some reconstructions.
+                // we will also generate all that are rotationally symmetric about (0,0) from other coordinate systems, so all octants will be visited
+                stereo:= vecCreate(stereo[1],stereo[0],0);
+                if StereoIsInStandardTriangle(stereo) then begin
+                  axis:= vecCreate(axis[1],axis[0],axis[2]);
+                end else
+                  continue;
               end;
+
               state:= 40;
 
               // for symmetry reasons, we will always get Z negative (lower half of the unit sphere when doing the stereographic projection)
@@ -215,15 +245,11 @@ begin
 
                 // decompose into r*(001),g*(011),b*(111) parts
                 // {{r -> z - y, g -> y - x, b -> x}}
-                nvec[0]:= asort[2] - asort[1];
-                nvec[1]:= asort[1] - asort[0];
-                nvec[2]:= asort[0];
+                ipfcolor[0]:= asort[2] - asort[1];
+                ipfcolor[1]:= asort[1] - asort[0];
+                ipfcolor[2]:= asort[0];
 
-                if i = 111722 then begin
-                  WriteLn('candidate: ', String(nvec), '        ', String(stereo), '        ', String(asort));
-                end;
-
-                if (i <> 111722) and (nvec[0] >= COLOR_THRESH) and (nvec[1] >= COLOR_THRESH) and (nvec[2] >= COLOR_THRESH) then begin
+                if (i <> 111722) and (ipfcolor[0] >= COLOR_THRESH) and (ipfcolor[1] >= COLOR_THRESH) and (ipfcolor[2] >= COLOR_THRESH) then begin
                   state:= 99;
                   found:= true;
                   break;
@@ -239,17 +265,18 @@ begin
         end; // for
 
         if not found then
-          nvec:= NULL_VECTOR;
+          ipfcolor:= NULL_VECTOR;
       end;
     end;
 
-    atoms.Atoms[i].Fields[fox]:= FloatToStr(nvec[0]);
-    atoms.Atoms[i].Fields[foy]:= FloatToStr(nvec[1]);
-    atoms.Atoms[i].Fields[foz]:= FloatToStr(nvec[2]);
-    atoms.Atoms[i].Fields[fstate]:= IntToStr(state);
+    particle^.Fields[fox]:= FloatToStr(ipfcolor[0]);
+    particle^.Fields[foy]:= FloatToStr(ipfcolor[1]);
+    particle^.Fields[foz]:= FloatToStr(ipfcolor[2]);
+    particle^.Fields[fstate]:= IntToStr(state);
   end;
   tmr.Stop;
   tmr.OutputTime('Analysis time');
+  ReadLn;
 end;
 
 procedure ProcessFile(const filename: string);
@@ -259,7 +286,11 @@ var
 begin
   atoms:= TLammpsFile.Create;
   try
-    atoms.LoadLAMMPSDumpFile(filename);
+    case InputFileType of
+      ftDump: atoms.LoadLAMMPSDumpFile(filename);
+      ftData: atoms.LoadLAMMPSDataFile(filename);
+    end;
+
     atoms.PrepareNeighborCells(ExpectedLatConst * 3);
 
     if aeOIM in analysesEnabled then begin

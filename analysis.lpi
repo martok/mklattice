@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="--oim --reference 0.707,0.707,0,0,0,1,0.707,-0.707,0 a.dump"/>
+        <CommandLineParams Value="--oim --reference 1,0,0,0,0,1,0,1,0 -f data a.eam"/>
       </local>
     </RunParams>
     <Units Count="4">
@@ -61,6 +61,11 @@
       <IncludeFiles Value="$(ProjOutDir)"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsStabs"/>
+      </Debugging>
+    </Linking>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

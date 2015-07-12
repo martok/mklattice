@@ -24,7 +24,10 @@ function vecMaxComponent(a: TVector3f): Single;
 
 operator-(a,b: TVector3f): TVector3f;
 operator*(a,b: TVector3f): Single;
+
 operator*(a: TVector3f; b: Single): TVector3f;
+operator*(b: Single; a: TVector3f): TVector3f;
+operator-(a: TVector3f): TVector3f;
 
 operator :=(a: TVector3f): string;
 
@@ -37,6 +40,7 @@ const
 function matCreate(baseX, baseY, baseZ: TVector3f): TMatrix3x3f;
 function matDeterminant(m: TMatrix3x3f): Single;
 function matInvert(m:TMatrix3x3f): TMatrix3x3f;
+function matTranspose(m:TMatrix3x3f): TMatrix3x3f;
 function matRotation(axis: TVector3f; const angle: Double): TMatrix3x3f; overload;
 function matRotation(const Attitude, Bank, Heading: Double): TMatrix3x3f; overload;
 function matRotationBunge(const phi1, Phi, phi2: Double): TMatrix3x3f;
@@ -110,6 +114,16 @@ begin
   Result[2]:= a[2] * b;
 end;
 
+operator*(b: Single; a: TVector3f): TVector3f;
+begin
+  Result:= a * b;
+end;
+
+operator-(a: TVector3f): TVector3f;
+begin
+  Result:= a * -1.0;
+end;
+
 operator:=(a: TVector3f): string;
 begin
   Result:= format('{%f, %f, %f}',[a[0], a[1], a[2]]);
@@ -143,6 +157,16 @@ begin
     vecCreate(m[2,0] * m[1,2] - m[1,0] * m[2,2], m[0,0] * m[2,2] - m[2,0] * m[0,2], m[1,0] * m[0,2] - m[0,0] * m[1,2]) * idet,
     vecCreate(m[1,0] * m[2,1] - m[2,0] * m[1,1], m[2,0] * m[0,1] - m[0,0] * m[2,1], m[0,0] * m[1,1] - m[1,0] * m[0,1]) * idet
   );
+end;
+
+function matTranspose(m: TMatrix3x3f): TMatrix3x3f;
+var x,y: integer;
+begin
+  for x := 0 to 2 do begin
+    for y := 0 to 2 do begin
+      result[x, y] := m[y,x];
+    end;
+  end;
 end;
 
 function matRotation(axis: TVector3f; const angle: Double): TMatrix3x3f;
