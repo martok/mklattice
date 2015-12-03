@@ -294,7 +294,11 @@ begin
       end else
       if utlSScanf(OptArg,'load:%f,%f,%f,%f,%f,%f,%f,%f,%f',[@x,@y,@z,@m10,@m11,@m12,@m20,@m21,@m22],NeutralFormatSettings)=0 then begin
         Rotation*= matCreate(vecCreate(x,y,z),vecCreate(m10,m11,m12),vecCreate(m20,m21,m22));
+      end else
+      if utlSScanf(OptArg,'base:%f,%f,%f;%f,%f,%f;%f,%f,%f',[@x,@y,@z,@m10,@m11,@m12,@m20,@m21,@m22],NeutralFormatSettings)=0 then begin
+        Rotation*= matTranspose(matCreate(vecNormalize(vecCreate(x,y,z)),vecNormalize(vecCreate(m10,m11,m12)),vecNormalize(vecCreate(m20,m21,m22))));
       end;
+      WriteLn(ErrOutput, 'Using Matrix ',String(Rotation));
     end;
     'e': begin
       if SplitIndexedArg(OptArg, i, p) then begin
