@@ -5,31 +5,42 @@ unit uLattice;
 interface
 
 uses
-  Classes, SysUtils, uAtomList, uLinAlg;
+  Classes, SysUtils, fgl, uAtomList, uLinAlg;
 
 type
-  TLatticeArray = packed array of packed array of packed array of boolean;
-  TSubLatticeSC = class
-    LatConst: Extended;
-    AtomType: Byte;
-    Offset: TSize3;
+  TLatticeDescriptor = class
+    Name: string;
+    BoxMatrix: TMatrix3x3f;
+    Atoms: array of array of TVector3f;   // index 0: atomtype, index 1: atoms of type
+    Elements: array of byte;              // for each in Atoms: element index
+
+    constructor Create(aName: string);
+    function SetMatrix(aMatrix: TMatrix3x3f): TLatticeDescriptor;
+    function SubLattice(aElementIndex: byte; aPositions: array of TVector3f): TLatticeDescriptor;
+  end;
+  TLatticeDescriptorList = specialize TFPGObjectList<TLatticeDescriptor>;
+  TLatticeElements = array of byte;
+
+  TLatticeGenerator = class
+    Lattice: TLatticeDescriptor;
+    Elements: TLatticeElements;
+    LatConst: Double;
     Cell: TSize3;
     Dim: TGrid3;
     Rotation: TMatrix3x3f;
     FilterFunction: TAtomFilter;
-    FilterIndex: integer;
-    constructor Create(aAtomType: Byte; aLatConst: Extended);
-    // Set Position of first Atom
-    function SetOffset(aX, aY, aZ: Extended): TSubLatticeSC;
+    constructor Create(aLattice: TLatticeDescriptor; aLatConst: Double);
     // Create a field so that realworld coordinates mX, mY, mZ form the upper corner
-    function InitDimensions(mX, mY, mZ: Extended): TSubLatticeSC;
+    function InitDimensions(mX, mY, mZ: Extended): TLatticeGenerator;
     // Create a field with a specific number of lattice nodes
-    function InitLattice(mX, mY, mZ: Integer): TSubLatticeSC;
+    function InitLattice(mX, mY, mZ: Integer): TLatticeGenerator;
     // Set rotation matrix
-    function SetRotation(aMatrix: TMatrix3x3f): TSubLatticeSC;
+    function SetRotation(aMatrix: TMatrix3x3f): TLatticeGenerator;
+    // Set elements in the same order as pointed to in descriptor
+    function SetElements(aElements: TLatticeElements): TLatticeGenerator;
 
-    function Filter(aFilterFunc: TAtomFilter; aIndex: integer): TSubLatticeSC;
-    function ExportAtoms(const List: TAtomList; var PlaceCounter: int64): TSubLatticeSC;
+    function Filter(aFilterFunc: TAtomFilter): TLatticeGenerator;
+    function ExportAtoms(const List: TAtomList; var PlaceCounter: int64): TLatticeGenerator;
   end;
 
 implementation
@@ -42,65 +53,93 @@ begin
   Result:= true;
 end;
 
-{ TSubLatticeSC }
+{ TLatticeDescriptor }
 
-constructor TSubLatticeSC.Create(aAtomType: Byte; aLatConst: Extended);
+constructor TLatticeDescriptor.Create(aName: string);
 begin
   inherited Create;
-  AtomType:= aAtomType;
-  LatConst:= aLatConst;
-  Filter(@DefaultFilter, 0);
-  SetOffset(0,0,0);
-  Rotation:= IDENTITY_MATRIX;
+  Name:= aName;
+  BoxMatrix:= IDENTITY_MATRIX;
+  SetLength(Atoms, 0);
+  SetLength(Elements,0);
 end;
 
-function TSubLatticeSC.SetOffset(aX, aY, aZ: Extended): TSubLatticeSC;
+function TLatticeDescriptor.SetMatrix(aMatrix: TMatrix3x3f): TLatticeDescriptor;
 begin
   Result:= Self;
-  Offset[0]:= aX;
-  Offset[1]:= aY;
-  Offset[2]:= aZ;
+  BoxMatrix:= aMatrix;
 end;
 
-function TSubLatticeSC.InitDimensions(mX, mY, mZ: Extended): TSubLatticeSC;
+function TLatticeDescriptor.SubLattice(aElementIndex: byte; aPositions: array of TVector3f): TLatticeDescriptor;
+var
+  l,i: integer;
+begin
+  Result:= Self;
+  l:= Length(Atoms);
+  SetLength(Atoms, l+1);
+  SetLength(Atoms[l], Length(aPositions));
+  for i:= 0 to high(aPositions) do
+    Atoms[l][i]:= aPositions[i];
+  SetLength(Elements, l+1);
+  Elements[l]:= aElementIndex;
+end;
+
+{ TLatticeGenerator }
+
+constructor TLatticeGenerator.Create(aLattice: TLatticeDescriptor; aLatConst: Double);
+begin
+  inherited Create;
+  Lattice:= aLattice;
+  LatConst:= aLatConst;
+  Rotation:= IDENTITY_MATRIX;
+  SetLength(Elements, 0);
+  FilterFunction:= @DefaultFilter;
+end;
+
+function TLatticeGenerator.InitDimensions(mX, mY, mZ: Extended): TLatticeGenerator;
 var
   ax,ay,az: Extended;
 begin
   Result:= Self;
-  ax:= mX - Offset[0];
-  ay:= mY - Offset[1];
-  az:= mZ - Offset[2];
+  ax:= mX;
+  ay:= mY;
+  az:= mZ;
   InitLattice(ceil(ax / LatConst), ceil(ay / LatConst), ceil(az / LatConst));
   Cell[0]:= mX;
   Cell[1]:= mY;
   Cell[2]:= mZ;
 end;
 
-function TSubLatticeSC.InitLattice(mX, mY, mZ: Integer): TSubLatticeSC;
+function TLatticeGenerator.InitLattice(mX, mY, mZ: Integer): TLatticeGenerator;
 begin
   Result:= Self;
-  Dim[0]:= ceil(mX - Offset[0]);
-  Dim[1]:= ceil(mY - Offset[1]);
-  Dim[2]:= ceil(mZ - Offset[2]);
+  Dim[0]:= ceil(mX);
+  Dim[1]:= ceil(mY);
+  Dim[2]:= ceil(mZ);
   Cell[0]:= mX * LatConst;
   Cell[1]:= mY * LatConst;
   Cell[2]:= mZ * LatConst;
 end;
 
-function TSubLatticeSC.SetRotation(aMatrix: TMatrix3x3f): TSubLatticeSC;
+function TLatticeGenerator.SetRotation(aMatrix: TMatrix3x3f): TLatticeGenerator;
 begin
   Result:= Self;
   Rotation:= aMatrix;
 end;
 
-function TSubLatticeSC.Filter(aFilterFunc: TAtomFilter; aIndex: integer): TSubLatticeSC;
+function TLatticeGenerator.SetElements(aElements: TLatticeElements): TLatticeGenerator;
+begin
+  Result:= Self;
+  Elements:= aElements;
+end;
+
+function TLatticeGenerator.Filter(aFilterFunc: TAtomFilter): TLatticeGenerator;
 begin
   Result:= Self;
   FilterFunction:= aFilterFunc;
-  FilterIndex:= aIndex;
 end;
 
-function TSubLatticeSC.ExportAtoms(const List: TAtomList; var PlaceCounter: int64): TSubLatticeSC;
+function TLatticeGenerator.ExportAtoms(const List: TAtomList; var PlaceCounter: int64): TLatticeGenerator;
 const
   pts: array[0..7] of array[0..2] of integer = (
          (0,0,0),
@@ -115,8 +154,8 @@ const
 
 var
   xl,xh,yl,yh,zl,zh: integer;
-  i,j,k: integer;
-  m: TMatrix3x3f;
+  i,j,k,s,a: integer;
+  realrot, m: TMatrix3x3f;
   v: TVector3f;
   ia: Byte;
 
@@ -130,12 +169,14 @@ var
   begin
     Result:= IsZero(v) or ((v>=0) and (v < max));
   end;
-
 begin
   Result:= Self;
+
+  realrot:= Rotation * Lattice.BoxMatrix;
+
   // Find bounding box in rotated csys
-  m:= matInvert(Rotation);
-  v:=  m * vecCreate(0,0,0);
+  m:= matInvert(realrot);
+  v:= m * vecCreate(0,0,0);
   xl:= trunc(v[0]); xh:= trunc(v[0]);
   yl:= trunc(v[1]); yh:= trunc(v[1]);
   zl:= trunc(v[2]); zh:= trunc(v[2]);
@@ -149,18 +190,22 @@ begin
   for i:= xl to xh-1 do
     for j:= yl to yh-1 do
       for k:= zl to zh-1 do begin
-        ia:= AtomType;
-        v:= vecCreate(
-              (i + Offset[0]) * LatConst,
-              (j + Offset[1]) * LatConst,
-              (k + Offset[2]) * LatConst);
-        v:= Rotation * v;
-        if CellRange(v[0], Cell[0]) and
-           CellRange(v[1], Cell[1]) and
-           CellRange(v[2], Cell[2]) then begin
-          inc(PlaceCounter);
-          if FilterFunction(FilterIndex,ia,v[0],v[1],v[2]) then
-            List.Add(TAtomDef.Create(ia, v[0],v[1],v[2]));
+        for s:= 0 to high(Lattice.Atoms) do begin
+          for a:= 0 to high(Lattice.Atoms[s]) do begin
+            ia:= Elements[Lattice.Elements[s]];
+            v:= vecCreate(
+                  (i + Lattice.Atoms[s,a,0]) * LatConst,
+                  (j + Lattice.Atoms[s,a,1]) * LatConst,
+                  (k + Lattice.Atoms[s,a,2]) * LatConst);
+            v:= realrot * v;
+            if CellRange(v[0], Cell[0]) and
+               CellRange(v[1], Cell[1]) and
+               CellRange(v[2], Cell[2]) then begin
+              inc(PlaceCounter);
+              if FilterFunction(a,ia,v[0],v[1],v[2]) then
+                List.Add(TAtomDef.Create(ia, v[0],v[1],v[2]));
+            end;
+          end;
         end;
       end;
   List.MergeCell(Cell);

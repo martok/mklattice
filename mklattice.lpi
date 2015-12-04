@@ -29,7 +29,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <CommandLineParams Value="--preset Fe -m load:-0.46,0.102,-0.88,-0.76,-0.54,0.34,-0.44,0.83,0.33 --cells 10 -o a.eam"/>
+        <CommandLineParams Value="--preset=Feal-do3 --cells 2 -o a.eam"/>
       </local>
     </RunParams>
     <RequiredPackages Count="1">

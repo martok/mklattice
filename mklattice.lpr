@@ -13,6 +13,7 @@ uses
 
 var
   AtomList:TAtomList;
+  Lattices: TLatticeDescriptorList;
   OverallPlaces: int64;
 
 const
@@ -60,21 +61,64 @@ begin
   AtomList.Cell:= Size3(AtomList.Cell[0],AtomList.Cell[1],AtomList.Cell[2] - TopPlaneCut);
 end;
 
+procedure LoadLatticeTypes;
+  function BuildDO3(descr: TLatticeDescriptor): TLatticeDescriptor;
+  begin
+    Result:= descr;
+    descr.
+      SetMatrix(IDENTITY_MATRIX * 2).
+      SubLattice(0, [
+        vecCreate(0.0,0.0,0.0), vecCreate(0.5,0.0,0.0), vecCreate(0.0,0.5,0.0),
+        vecCreate(0.0,0.0,0.5), vecCreate(0.5,0.0,0.5), vecCreate(0.0,0.5,0.5),
+        vecCreate(0.5,0.5,0.5)
+      ]).
+      SubLattice(0, [
+        vecCreate(0.25,0.25,0.25), vecCreate(0.75,0.75,0.25),
+        vecCreate(0.75,0.25,0.75), vecCreate(0.25,0.75,0.75)
+      ]).
+      SubLattice(1, [
+        vecCreate(0.75,0.25,0.25), vecCreate(0.25,0.75,0.25),
+        vecCreate(0.25,0.25,0.75), vecCreate(0.75,0.75,0.75)
+      ]);
+  end;
+
+begin
+  Lattices.Add(TLatticeDescriptor.Create('SC').
+    SubLattice(0, [vecCreate(0,0,0)])
+  );
+  Lattices.Add(TLatticeDescriptor.Create('BCC').
+    SubLattice(0, [vecCreate(0,0,0), vecCreate(0.5,0.5,0.5)])
+  );
+  Lattices.Add(TLatticeDescriptor.Create('FCC').
+    SubLattice(0, [vecCreate(0,0,0), vecCreate(0.5,0.5,0), vecCreate(0.5,0,0.5), vecCreate(0,0.5,0.5)])
+  );
+  Lattices.Add(TLatticeDescriptor.Create('B2').
+    SubLattice(0, [vecCreate(0,0,0)]).
+    SubLattice(1, [vecCreate(0.5,0.5,0.5)])
+  );
+  Lattices.Add(BuildDO3(TLatticeDescriptor.Create('DO3')));
+end;
+
 procedure InitLatticeParameters;
 var
+  ld: TLatticeDescriptor;
   numEl: integer;
+  ei: byte;
 begin
-  case LatticeType of
-    'SC',
-    'FCC',
-    'BCC': begin
-      numEl:= 1;
+  numEl:= -1;
+  for ld in Lattices do
+    if ld.Name = LatticeType then begin
+      for ei in ld.Elements do
+        if numEl < ei then
+          numEl:= ei;
+      break;
     end;
-    'B2',
-    'DO3': begin
-      numEl:= 2;
-    end;
+  if numEl < 0 then begin
+    WriteLn(ErrOutput, 'Invalid lattice argument: ',OptArg);
+    Halt(1);
   end;
+
+  inc(numEl);
   SetLength(Elements, numEl);
   SetLength(Vacancies, numEl);
   SetLength(AntiSite, numEl);
@@ -93,104 +137,35 @@ begin
     param:= Arg;
 end;
 
-procedure Lattice_SC;
-begin
-  TSubLatticeSC.Create(Elements[0], LatConst).
-    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
-    SetRotation(Rotation).
-    ExportAtoms(AtomList, OverallPlaces).
-    Free;
-end;
-
-procedure Lattice_BCC;
-begin
-  TSubLatticeSC.Create(Elements[0], LatConst).
-    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
-    SetRotation(Rotation).
-    ExportAtoms(AtomList, OverallPlaces).
-    Free;
-
-  TSubLatticeSC.Create(Elements[0], LatConst).
-    SetOffset(0.5, 0.5, 0.5).
-    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
-    SetRotation(Rotation).
-    ExportAtoms(AtomList, OverallPlaces).
-    Free;
-end;
-
-procedure Lattice_FCC;
-const
-  sides: array[0..3] of TSize3 = (
-    (0.0, 0.0, 0.0),
-    (0.5, 0.0, 0.5),
-    (0.0, 0.5, 0.5),
-    (0.5, 0.5, 0.0)
-  );
-var
-  i: integer;
-begin
-  for i:= 0 to high(sides) do
-    TSubLatticeSC.Create(Elements[0], LatConst).
-      SetOffset(sides[i][0],sides[i][1],sides[i][2]).
-    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
-      SetRotation(Rotation).
-      ExportAtoms(AtomList, OverallPlaces).
-      Free;
-end;
-
 function VacancyFilter(const AtomIndex: Integer; var AtomType: byte; const x,y,z: Single) : boolean;
 begin
   Result:= (Random > Vacancies[AtomIndex]);
   if Result then begin
-    if (Random > AntiSite[AtomIndex]) then begin
+    if (Random < AntiSite[AtomIndex]) then begin
       AtomType:= Elements[(AtomIndex + 1) mod Length(Elements)];
     end;
   end;
 end;
 
-procedure Lattice_B2;
-begin
-  TSubLatticeSC.Create(Elements[0], LatConst).
-    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
-    Filter(@VacancyFilter, 0).
-    SetRotation(Rotation).
-    ExportAtoms(AtomList, OverallPlaces).
-    Free;
-
-  TSubLatticeSC.Create(Elements[1], LatConst).
-    SetOffset(0.5, 0.5, 0.5).
-    InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
-    Filter(@VacancyFilter, 1).
-    SetRotation(Rotation).
-    ExportAtoms(AtomList, OverallPlaces).
-    Free;
-end;
-
-procedure Lattice_DO3;
-const
-  Alternate: array[boolean] of byte = (1,0);
+procedure Lattice_Execute;
 var
-  x,y,z,e: integer;
+  desc: TLatticeDescriptor;
 begin
-  TSubLatticeSC.Create(Elements[0], LatConst).
-    InitLattice(LatticeCells[0]*2, LatticeCells[1]*2, LatticeCells[2]*2).
-    Filter(@VacancyFilter, 0).
-    SetRotation(Rotation).
-    ExportAtoms(AtomList, OverallPlaces).
-    Free;
+  for desc in Lattices do begin
+    if desc.Name = LatticeType then begin
+      TLatticeGenerator.Create(desc, LatConst).
+        SetRotation(Rotation).
+        InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
+        SetElements(Elements).
+        Filter(@VacancyFilter).
+        ExportAtoms(AtomList, OverallPlaces).
+        Free;
+      exit;
+    end;
+  end;
 
-  for x:= 0 to 1 do
-    for y:= 0 to 1 do
-      for z:= 0 to 1 do begin
-        e:= Alternate[(x+y+z) mod 2 = 0];
-        TSubLatticeSC.Create(Elements[e], LatConst * 2).
-          SetOffset(0.25 + 0.5*x, 0.25 + 0.5*y, 0.25 + 0.5*z).
-          InitLattice(LatticeCells[0], LatticeCells[1], LatticeCells[2]).
-          Filter(@VacancyFilter, e).
-          SetRotation(Rotation).
-          ExportAtoms(AtomList, OverallPlaces).
-          Free;
-      end;
+  WriteLn(ErrOutput, 'Invalid lattice argument: ',OptArg);
+  Halt(1);
 end;
 
 const
@@ -359,32 +334,29 @@ begin
   LoadNeutralFormatSettings;
   Randomize;
   LoadAtomTypes;
-  OverallPlaces:= 0;
-  AtomList:= TAtomList.Create;
+  Lattices:= TLatticeDescriptorList.Create(true);
   try
-    Rotation:= IDENTITY_MATRIX;
+    LoadLatticeTypes;
 
-    HandleAllOptions(OptionShort, @OptionsLong, @ProcessOption);
+    OverallPlaces:= 0;
+    AtomList:= TAtomList.Create;
+    try
+      Rotation:= IDENTITY_MATRIX;
 
-    case LatticeType of
-      'SC': Lattice_SC;
-      'BCC': Lattice_BCC;
-      'FCC': Lattice_FCC;
-      'B2': Lattice_B2;
-      'DO3': Lattice_DO3;
-      else begin
-        WriteLn(ErrOutput, 'Invalid lattice argument: ',OptArg);
-        Halt(1);
-      end;
+      HandleAllOptions(OptionShort, @OptionsLong, @ProcessOption);
+
+      Lattice_Execute;
+
+      Carve_Top;
+      if Kink > 0.0 then
+        Carve_Kink(LatConst);
+
+      AtomList.ExportAtoms('Generated by `'+cmdline+'` at ' + DateTimeToStr(Now), AtomTypes, OverallPlaces);
+    finally
+      FreeAndNil(AtomList);
     end;
-
-    Carve_Top;
-    if Kink > 0.0 then
-      Carve_Kink(LatConst);
-
-    AtomList.ExportAtoms('Generated by `'+cmdline+'` at ' + DateTimeToStr(Now), AtomTypes, OverallPlaces);
   finally
-    FreeAndNil(AtomList);
+    FreeAndNil(Lattices);
   end;
 end.
 

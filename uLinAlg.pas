@@ -47,6 +47,7 @@ function matRotationBunge(const phi1, Phi, phi2: Double): TMatrix3x3f;
 function matRotationRoe(const psi, Phi, phi2: Double): TMatrix3x3f;
 function matRotationKocks(const Psi, Theta, Phi: Double): TMatrix3x3f;
 
+operator *(a: TMatrix3x3f; b: Single): TMatrix3x3f;
 operator *(a: TMatrix3x3f; b: TVector3f): TVector3f;
 operator *(a: TMatrix3x3f; b: TMatrix3x3f): TMatrix3x3f;
 
@@ -255,6 +256,13 @@ begin
   result[0] := vecCreate(-sp*sf-cp*cf*ct, cp*sf-sp*cf*ct, cf*st);
   result[1] := vecCreate(sp*cf-cp*sf*ct, -cp*cf-sp*sf*ct, sf*st);
   result[2] := vecCreate(cp*st, sp*st, ct);
+end;
+
+operator*(a: TMatrix3x3f; b: Single): TMatrix3x3f;
+begin
+  Result[0]:= a[0] * b;
+  Result[1]:= a[1] * b;
+  Result[2]:= a[2] * b;
 end;
 
 operator*(a: TMatrix3x3f; b: TVector3f): TVector3f;
