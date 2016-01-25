@@ -169,7 +169,7 @@ begin
 end;
 
 const
-  OptionsLong: array[1..13] of TOption = (
+  OptionsLong: array[1..14] of TOption = (
    (Name: 'file'; Has_Arg: Required_Argument; Flag: nil; Value: 'o'),
    (Name: 'preset'; Has_Arg: Required_Argument; Flag: nil; Value: #0),
    (Name: 'lattice'; Has_Arg: Required_Argument; Flag: nil; Value: 'l'),
@@ -179,12 +179,13 @@ const
    (Name: 'element'; Has_Arg: Required_Argument; Flag: nil; Value: 'e'),
    (Name: 'kink'; Has_Arg: Required_Argument; Flag: nil; Value: 'k'),
    (Name: 'top'; Has_Arg: Required_Argument; Flag: nil; Value: 't'),
+   (Name: 'solution'; Has_Arg: Required_Argument; Flag: nil; Value: 'u'),
    (Name: 'vac'; Has_Arg: Required_Argument; Flag: nil; Value: 'v'),
    (Name: 'anti'; Has_Arg: Required_Argument; Flag: nil; Value: 's'),
    (Name: 'help'; Has_Arg: No_Argument; Flag: nil; Value: 'h'),
    (Name: ''; Has_Arg: 0; Flag: nil; Value: #0)
   );
-  OptionShort = '?hl:o:c:k:s:t:v:a:e:m:';
+  OptionShort = '?hl:o:c:k:s:t:v:a:e:m:u:';
 
 procedure ProcessOption(const opt: string; const OptArg: string);
   procedure ExecutePreset(const PresetName: string);
@@ -235,6 +236,9 @@ begin
     'l': begin
       LatticeType:= UpperCase(OptArg);
       InitLatticeParameters;
+    end;
+    'u': begin
+      SetLength(Elements, Length(Elements) + StrToInt(OptArg));
     end;
     'a': begin
       LatConst:= StrToFloat(OptArg);
