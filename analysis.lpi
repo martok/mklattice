@@ -32,7 +32,7 @@
         <CommandLineParams Value="--oim --reference 1,0,0,0,0,1,0,1,0 -f data a.eam"/>
       </local>
     </RunParams>
-    <Units Count="4">
+    <Units Count="6">
       <Unit0>
         <Filename Value="analysis.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -49,6 +49,14 @@
         <Filename Value="uLinAlg.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="analysis_DislocNetwork.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="analysis_OIM.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit5>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
